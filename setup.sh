@@ -48,5 +48,6 @@ echo "✅ Setup hoàn tất. Web sẽ chạy từ thư mục /var/www/f_web"
 
 
 # CÁCH DÙNG:
-# curl -s https://raw.githubusercontent.com/yourusername/vps-setup/main/setup.sh | bash
+# curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
+
 

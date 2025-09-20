@@ -50,4 +50,4 @@ echo "✅ Deploy thành công!"
 # ./deploy.sh
 
 # FILE deploy.sh trên GITHUB
-# curl -s https://raw.githubusercontent.com/<username>/<repo>/<branch>/deploy.sh | bash
+# curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/deploy.sh | bash
