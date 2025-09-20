@@ -12,28 +12,29 @@ Bộ script để setup, deploy và rollback cho Flutter Web trên VPS.
 SSH vào VPS rồi chạy:
 
 ```bash
-curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
+curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup_no_domain.sh | bash
 
 
 //------------------------------------
 2. Deploy web (chạy trên local)
 Trong thư mục dự án Flutter:
 
-curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/deploy.sh -o deploy.sh
-chmod +x deploy.sh
+curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_no_domain.sh -o deploy_no_domain.sh
+chmod +x deploy_no_domain.sh
 ./deploy.sh
 
 ⏪ 3. Rollback (nếu cần)
 SSH vào VPS:
-
-curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/rollback.sh -o rollback.sh
-chmod +x rollback.sh
+curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/rollback_no_domain.sh -o rollback_no_domain.sh
+chmod +x rollback_no_domain.sh
 ./rollback.sh
+
 
 📌 Lưu ý
 deploy.sh phải chạy từ local vì cần build Flutter web.
 Server sẽ lưu nhiều bản trong /var/www/f_web/releases/.
 rollback.sh chỉ chuyển symbolic link current sang bản trước.
+
 
 
 
