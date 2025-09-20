@@ -9,36 +9,68 @@
 #!/bin/bash
 set -e
 
-LOCAL_BUILD_DIR="./build/web"
-ARCHIVE_NAME="f_web_$(date +%Y%m%d%H%M%S).tar.gz"
-REMOTE_DIR="/var/www/f_web"
-REMOTE_HOST="root@46.28.69.11"
+# Import utils
+source "$(dirname "$0")/utils.sh"
 
-# 1. Kiểm tra thư mục build/web
-if [ ! -d "$LOCAL_BUILD_DIR" ]; then
-  echo "❌ Không tìm thấy thư mục build/web. Hãy chạy: flutter build web --release"
+# Kiểm tra tham số DOMAIN
+DOMAIN=$1
+if [ -z "$DOMAIN" ]; then
+  echo "❌ Bạn phải nhập DOMAIN khi deploy"
+  echo "👉 Ví dụ: ./deploy.sh example.com"
   exit 1
 fi
 
-echo "👉 Tạo gói nén..."
-tar -czf $ARCHIVE_NAME -C $LOCAL_BUILD_DIR .
+# Thư mục dự án local
+PROJECT_DIR="$(pwd)"
+BUILD_DIR="$PROJECT_DIR/build/web"
+ARCHIVE="build.tar.gz"
 
-echo "👉 Upload gói nén lên server..."
-scp $ARCHIVE_NAME $REMOTE_HOST:/tmp/
+# Thư mục đích trên VPS
+REMOTE_USER="root"
+REMOTE_HOST="46.28.69.11"
+REMOTE_DIR="/var/www/$DOMAIN"
+NGINX_CONF_DIR="/etc/nginx/sites-available"
+NGINX_LINK_DIR="/etc/nginx/sites-enabled"
 
-echo "👉 Giải nén gói trên server..."
-ssh $REMOTE_HOST << EOF
+note "🚀 Bắt đầu build Flutter web..."
+flutter build web
+
+note "📦 Nén build..."
+tar -czf $ARCHIVE -C $BUILD_DIR .
+
+note "📤 Upload lên VPS..."
+scp $ARCHIVE $REMOTE_USER@$REMOTE_HOST:/tmp/
+
+note "📂 Giải nén trên VPS..."
+ssh $REMOTE_USER@$REMOTE_HOST <<EOF
   mkdir -p $REMOTE_DIR
-  tar -xzf /tmp/$ARCHIVE_NAME -C $REMOTE_DIR
-  rm -f /tmp/$ARCHIVE_NAME
-  chown -R nginx:nginx $REMOTE_DIR
-  systemctl restart nginx
+  tar -xzf /tmp/$ARCHIVE -C $REMOTE_DIR
+  rm -f /tmp/$ARCHIVE
 EOF
 
-echo "👉 Xóa gói nén local..."
-rm -f $ARCHIVE_NAME
+note "⚙️ Kiểm tra cấu hình Nginx cho domain: $DOMAIN"
+ssh $REMOTE_USER@$REMOTE_HOST <<EOF
+  if [ ! -f $NGINX_CONF_DIR/$DOMAIN ]; then
+    cat > $NGINX_CONF_DIR/$DOMAIN <<CONF
+server {
+    listen 80;
+    server_name $DOMAIN;
 
-echo "✅ Deploy thành công!"
+    root $REMOTE_DIR;
+    index index.html;
+
+    location / {
+        try_files \$uri /index.html;
+    }
+}
+CONF
+    ln -s $NGINX_CONF_DIR/$DOMAIN $NGINX_LINK_DIR/
+  fi
+
+  nginx -t && systemctl reload nginx
+EOF
+
+note "✅ Deploy thành công cho domain: $DOMAIN"
 
 
 
