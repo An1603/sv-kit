@@ -69,3 +69,16 @@ chmod +x deploy_web.sh
 
 Mỗi lần muốn deploy web:
 ./deploy_web.sh
+
+
+
+👉 Cách chạy:
+export WEB_DOMAIN=eurobank.eu.com
+./update.sh
+
+hoặc chỉ cần chạy trực tiếp:
+./update.sh
+
+
+(nếu không có WEB_DOMAIN thì nó sẽ hỏi bạn nhập domain).
+Bạn có muốn mình gom luôn bước Certbot SSL cho Flutter web (tự cấp HTTPS như với n8n) không, hay bạn định chỉ trỏ DNS rồi dùng reverse proxy của Cloudflare?
