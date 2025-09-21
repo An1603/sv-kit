@@ -6,7 +6,6 @@ Cách 1: Dùng ENV trước khi chạy
 Bạn set biến môi trường rồi chạy script:
 
 export N8N_DOMAIN=n8n.way4.app
-export WEB_DOMAIN=eurobank.eu.com
 curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
 
 
@@ -42,10 +41,10 @@ Copy file build f_web.tar.gz vào server:
 scp f_web.tar.gz root@<server-ip>:/opt/way4/
 ssh root@<server-ip> "cd /opt/way4 && ./update.sh"
 
-3. Update n8n
+1. Update n8n
 ssh root@<server-ip> "cd /opt/way4 && ./update.sh"
 
-4. Thư mục dữ liệu
+1. Thư mục dữ liệu
 
 n8n_data/ → dữ liệu workflows của n8n
 
