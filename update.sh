@@ -1,15 +1,31 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== SV-KIT UPDATE SCRIPT ==="
+echo "=== SV-KIT UPDATE SCRIPT (Flutter Web) ==="
 
-# Update docker images
-echo "🐳 Update Docker..."
-docker compose pull
-docker compose up -d
+# --- Hỏi domain nếu chưa có ENV ---
+if [ -z "${FLUTTER_DOMAIN:-}" ]; then
+  read -rp "Nhập domain Flutter Web (vd: app.example.com): " FLUTTER_DOMAIN
+fi
+echo "📌 Flutter domain: $FLUTTER_DOMAIN"
 
-# Reload nginx nếu có thay đổi
+# --- Kiểm tra file build ---
+if [ ! -f "f_web.tar.gz" ]; then
+  echo "❌ Không tìm thấy file f_web.tar.gz trong thư mục hiện tại!"
+  echo "👉 Hãy chạy: flutter build web && tar -czf f_web.tar.gz -C build/web ."
+  exit 1
+fi
+
+# --- Upload web ---
+TARGET_DIR="/var/www/$FLUTTER_DOMAIN"
+echo "📂 Deploy web vào $TARGET_DIR ..."
+sudo mkdir -p "$TARGET_DIR"
+sudo tar -xzf f_web.tar.gz -C "$TARGET_DIR"
+sudo chown -R www-data:www-data "$TARGET_DIR"
+
+# --- Reload Nginx ---
 echo "🔄 Reload Nginx..."
-nginx -t && systemctl reload nginx
+sudo nginx -t && sudo systemctl reload nginx
 
-echo "✅ Update hoàn tất!"
+echo "✅ Update Flutter web thành công!"
+echo "👉 Truy cập: http://$FLUTTER_DOMAIN"

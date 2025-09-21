@@ -32,6 +32,10 @@ sudo apt update && sudo apt install -y docker.io docker-compose nginx
 Chạy script setup.sh trực tiếp từ GitHub:
 curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
 
+N8N_DOMAIN=n8n.way4.app FLUTTER_DOMAIN=eurobank.eu.com
+curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
+
+
 👉 Script sẽ:
 Hỏi domain cho N8N và Flutter Web
 Tạo file config Nginx riêng cho từng domain (/etc/nginx/sites-available/)
