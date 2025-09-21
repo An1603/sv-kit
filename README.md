@@ -2,14 +2,25 @@
 Bộ cài đặt nhanh cho **n8n + Flutter Web + Nginx Proxy Manager** trên Ubuntu 22.04 LTS
 
 ## 1. Cài đặt lần đầu
-```bash
-git clone https://github.com/An1603/sv-kit.git
-cd sv-kit
-chmod +x setup.sh update.sh
-./setup.sh
+Cách 1: Dùng ENV trước khi chạy
+Bạn set biến môi trường rồi chạy script:
 
-HOẶC NHANH NHẤT:
+export N8N_DOMAIN=n8n.way4.app
 curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
+
+
+Tương tự cho update.sh:
+export WEB_DOMAIN=eurobank.eu.com
+curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/update.sh | bash
+
+Cách 2: Cho phép nhập khi pipe qua bash
+Bạn đổi lệnh thành:
+bash <(curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh)
+
+
+Cách này cho phép read -p hoạt động bình thường vì script được chạy trong một file tạm thay vì stdin.
+👉 Mình khuyên dùng Cách 1 (ENV) vì sau này bạn chỉ cần export một lần (thậm chí viết vào ~/.bashrc) → script chạy luôn, không phải nhập lại.
+Bạn muốn mình sửa luôn setup.sh để nếu không có ENV thì thoát ngay với hướng dẫn export, thay vì read -p, để chạy qua curl | bash chuẩn hơn không?
 
 
 
