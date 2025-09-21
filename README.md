@@ -1,3 +1,97 @@
+# 🚀 SV-KIT
+
+Bộ script tự động cài đặt & cập nhật **N8N** + **Flutter Web** với **Nginx + SSL Let's Encrypt**.  
+Được thiết kế **fail-safe** (có rollback), mỗi domain một file riêng trong Nginx, dễ quản lý.
+
+---
+
+## 📂 Cấu trúc Repo
+sv-kit/
+├── setup.sh # Script setup lần đầu
+├── update.sh # Script update (pull image mới, reload service)
+└── README.md # Hướng dẫn
+
+---
+
+## ⚙️ Yêu cầu hệ thống
+
+- Ubuntu 20.04/22.04/24.04
+- Quyền `sudo`
+- Docker + Docker Compose
+- Nginx
+- Certbot
+
+Cài nhanh:
+
+```bash
+sudo apt update && sudo apt install -y docker.io docker-compose nginx
+
+
+
+🚀 Cài đặt lần đầu
+Chạy script setup.sh trực tiếp từ GitHub:
+curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
+
+👉 Script sẽ:
+Hỏi domain cho N8N và Flutter Web
+Tạo file config Nginx riêng cho từng domain (/etc/nginx/sites-available/)
+Backup config cũ (rollback nếu lỗi)
+Cài SSL với Let's Encrypt
+Khởi động/reload lại Nginx
+
+
+🔄 Cập nhật (Update)
+Để pull image mới & restart service:
+curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/update.sh | bash
+
+👉 Script sẽ:
+Pull Docker image mới
+Restart container
+Kiểm tra & reload lại Nginx
+
+
+🛠 Rollback (Khôi phục config cũ)
+Nếu trong lúc setup có lỗi, script sẽ tự động rollback về config cũ (*.bak).
+Trong trường hợp cần rollback thủ công:
+
+cd /etc/nginx/sites-available/
+sudo mv yourdomain.conf.bak yourdomain.conf
+sudo systemctl reload nginx
+
+📜 Log & Debug
+Kiểm tra Nginx:
+sudo nginx -t
+sudo systemctl status nginx
+
+
+Log Nginx:
+journalctl -xeu nginx.service
+
+
+Log Docker:
+docker ps
+docker logs <container_id>
+
+✅ Ưu điểm
+Mỗi domain 1 file riêng → tránh conflict
+Có backup & rollback tự động
+SSL Let's Encrypt tự động
+Chạy nhanh chỉ với 1 lệnh curl
+
+📧 Liên hệ
+Người phát triển: Nguyễn An
+Ứng dụng: Way4 / SV-KIT
+---
+
+
+
+
+
+
+
+
+
+
 # sv-kit 🚀
 Bộ cài đặt nhanh cho **n8n + Flutter Web + Nginx Proxy Manager** trên Ubuntu 22.04 LTS
 
