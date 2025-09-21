@@ -6,6 +6,7 @@ Cách 1: Dùng ENV trước khi chạy
 Bạn set biến môi trường rồi chạy script:
 
 export N8N_DOMAIN=n8n.way4.app
+export WEB_DOMAIN=eurobank.eu.com
 curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
 
 

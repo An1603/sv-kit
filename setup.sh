@@ -1,129 +1,107 @@
 #!/bin/bash
 set -e
 
-# ==============================
-# Biến môi trường
-# ==============================
+# =============================
+# Setup n8n + Flutter web + Nginx + SSL
+# =============================
+
+# --- Hỏi domain cho n8n nếu chưa có ---
 if [ -z "$N8N_DOMAIN" ]; then
-  read -p "🌐 Nhập domain cho n8n (ví dụ: way4.app): " N8N_DOMAIN
+  read -p "👉 Nhập domain cho n8n (ví dụ: n8n.way4.app): " N8N_DOMAIN
   if [ -z "$N8N_DOMAIN" ]; then
     echo "❌ Bạn chưa nhập domain cho n8n!"
     exit 1
   fi
 fi
 
-if [ -z "$WEB_DOMAIN" ]; then
-  read -p "🌐 Nhập domain cho Flutter Web (ví dụ: eurobank.eu.com): " WEB_DOMAIN
-  if [ -z "$WEB_DOMAIN" ]; then
-    echo "❌ Bạn chưa nhập domain cho Flutter web!"
-    exit 1
-  fi
-fi
-
-# ==============================
-# Update hệ thống & cài gói cần thiết
-# ==============================
+# --- Cập nhật hệ thống ---
 echo "📦 Cập nhật hệ thống..."
-sudo apt update -y
-sudo apt upgrade -y
+sudo apt-get update -y
+sudo apt-get upgrade -y
 
-echo "📦 Cài đặt Docker & Docker Compose..."
+# --- Cài đặt Docker & Docker Compose nếu chưa có ---
 if ! command -v docker &> /dev/null; then
+  echo "🐳 Cài đặt Docker..."
   curl -fsSL https://get.docker.com | sh
+  sudo systemctl enable docker --now
 fi
 
 if ! command -v docker-compose &> /dev/null; then
-  sudo apt install -y docker-compose
+  echo "🐙 Cài đặt Docker Compose..."
+  sudo apt-get install -y docker-compose
 fi
 
-echo "📦 Cài đặt Nginx & Certbot..."
-sudo apt install -y nginx certbot python3-certbot-nginx
-
-# ==============================
-# Setup Nginx (Khởi động nếu chưa chạy)
-# ==============================
-if ! pgrep -x "nginx" > /dev/null; then
-  echo "🚀 Khởi động Nginx lần đầu..."
+# --- Cài đặt Nginx ---
+if ! command -v nginx &> /dev/null; then
+  echo "🌐 Cài đặt Nginx..."
+  sudo apt-get install -y nginx
   sudo systemctl enable nginx
   sudo systemctl start nginx
-else
-  echo "✅ Nginx đã chạy"
 fi
 
-# ==============================
-# Setup n8n với Docker
-# ==============================
-echo "⚙️ Cài đặt n8n..."
-mkdir -p /opt/n8n
-cat <<EOF | sudo tee /opt/n8n/docker-compose.yml > /dev/null
-services:
-  n8n:
-    image: n8nio/n8n
-    restart: always
-    ports:
-      - "5678:5678"
-    volumes:
-      - /opt/n8n/data:/home/node/.n8n
-    environment:
-      - N8N_HOST=$N8N_DOMAIN
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=https
-EOF
+# --- Xóa config cũ nếu tồn tại ---
+NGINX_CONF="/etc/nginx/sites-available/n8n.conf"
+if [ -f "$NGINX_CONF" ]; then
+  echo "⚠️ Xóa config Nginx cũ cho $N8N_DOMAIN..."
+  sudo rm -f "$NGINX_CONF"
+  sudo rm -f /etc/nginx/sites-enabled/n8n.conf || true
+fi
 
-sudo docker-compose -f /opt/n8n/docker-compose.yml up -d
-
-# ==============================
-# Cấu hình Nginx cho n8n
-# ==============================
-N8N_CONF="/etc/nginx/sites-available/n8n"
-sudo tee $N8N_CONF > /dev/null <<EOF
+# --- Tạo config Nginx mới ---
+echo "📝 Tạo config Nginx cho n8n ($N8N_DOMAIN)..."
+cat <<EOF | sudo tee /etc/nginx/sites-available/n8n.conf > /dev/null
 server {
     server_name $N8N_DOMAIN;
 
     location / {
-        proxy_pass http://localhost:5678;
+        proxy_pass http://localhost:5678/;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_http_version 1.1;
+        proxy_cache_bypass \$http_upgrade;
     }
 }
 EOF
 
-sudo ln -sf $N8N_CONF /etc/nginx/sites-enabled/n8n
+sudo ln -sf /etc/nginx/sites-available/n8n.conf /etc/nginx/sites-enabled/n8n.conf
 
-# ==============================
-# Cấu hình Nginx cho Flutter Web
-# ==============================
-WEB_CONF="/etc/nginx/sites-available/flutter_web"
-sudo mkdir -p /var/www/$WEB_DOMAIN
-sudo tee $WEB_CONF > /dev/null <<EOF
-server {
-    server_name $WEB_DOMAIN;
-
-    root /var/www/$WEB_DOMAIN;
-    index index.html;
-
-    location / {
-        try_files \$uri /index.html;
-    }
-}
-EOF
-
-sudo ln -sf $WEB_CONF /etc/nginx/sites-enabled/flutter_web
-
-# ==============================
-# Reload Nginx & cấp SSL
-# ==============================
-echo "🔄 Kiểm tra cấu hình Nginx..."
+# --- Test & restart Nginx ---
+echo "🔄 Kiểm tra & restart Nginx..."
 sudo nginx -t
+sudo systemctl restart nginx || sudo systemctl start nginx
 
-echo "🔄 Restart Nginx..."
-sudo systemctl restart nginx
+# --- Cài Certbot để cấp SSL ---
+if ! command -v certbot &> /dev/null; then
+  echo "🔐 Cài đặt Certbot..."
+  sudo apt-get install -y certbot python3-certbot-nginx
+fi
 
-echo "🔐 Cấp SSL bằng Let's Encrypt..."
-sudo certbot --nginx -d $N8N_DOMAIN -d $WEB_DOMAIN --non-interactive --agree-tos -m admin@$N8N_DOMAIN
+echo "🔐 Xin chứng chỉ SSL cho $N8N_DOMAIN..."
+sudo certbot --nginx -d $N8N_DOMAIN --non-interactive --agree-tos -m admin@$N8N_DOMAIN || true
 
-echo "✅ Hoàn tất cài đặt!"
-echo "👉 n8n: https://$N8N_DOMAIN"
-echo "👉 Flutter Web: https://$WEB_DOMAIN"
+# --- Setup thư mục cho Flutter Web ---
+echo "📂 Tạo thư mục cho Flutter web..."
+sudo mkdir -p /var/www/eurobank
+sudo chown -R www-data:www-data /var/www/eurobank
+
+# --- Docker Compose cho n8n ---
+echo "🐳 Setup n8n bằng Docker Compose..."
+mkdir -p ~/n8n
+cat <<EOF > ~/n8n/docker-compose.yml
+services:
+  n8n:
+    image: n8nio/n8n
+    ports:
+      - "5678:5678"
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    restart: always
+EOF
+
+cd ~/n8n
+docker-compose up -d
+
+echo "✅ Setup hoàn tất!"
+echo "🌐 Truy cập n8n tại: https://$N8N_DOMAIN"
