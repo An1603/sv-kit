@@ -7,6 +7,15 @@ set -e
 REPO_URL="https://github.com/An1603/sv-kit.git"
 INSTALL_DIR="/opt/way4"
 
+# --- Cài đặt Nginx nếu chưa có ---
+if ! command -v nginx &> /dev/null; then
+    echo "🌐 Cài đặt Nginx..."
+    apt update -y
+    apt install -y nginx
+    systemctl enable nginx
+    systemctl start nginx
+fi
+
 if [ -d "$INSTALL_DIR" ]; then
     echo "=== Phát hiện đã có cài đặt trước đó tại $INSTALL_DIR ==="
     cd $INSTALL_DIR
