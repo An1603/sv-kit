@@ -1,39 +1,29 @@
 #!/bin/bash
+# deploy_tar.sh - upload Flutter web bằng tar.gz
+
 set -e
-source <(curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/utils.sh)
 
-SERVER_USER="root"
-SERVER_IP="46.28.69.11"
-DEPLOY_DIR="/var/www/f_web"
-ARCHIVE_NAME="build_web_$(date +%Y%m%d%H%M%S).tar.gz"
+LOCAL_BUILD_DIR="./build/web"
+REMOTE_DIR="/var/www/f_web"
+REMOTE_HOST="root@46.28.69.11"
 
-log "🚀 Bắt đầu deploy Flutter Web..."
+if [ ! -d "$LOCAL_BUILD_DIR" ]; then
+  echo "❌ Không tìm thấy thư mục build/web. Hãy chạy: flutter build web --release"
+  exit 1
+fi
 
-log "🛠 Build Flutter web..."
-flutter build web
+echo "👉 Nén project..."
+tar -czf web_build.tar.gz -C $LOCAL_BUILD_DIR .
 
-log "📦 Nén build thành $ARCHIVE_NAME..."
-tar -czf $ARCHIVE_NAME -C build/web .
+echo "👉 Upload tar.gz..."
+scp web_build.tar.gz $REMOTE_HOST:/tmp/
 
-log "📤 Upload build lên VPS..."
-scp $ARCHIVE_NAME $SERVER_USER@$SERVER_IP:/tmp/
+echo "👉 Giải nén trên VPS..."
+ssh $REMOTE_HOST "rm -rf $REMOTE_DIR/* && mkdir -p $REMOTE_DIR && tar -xzf /tmp/web_build.tar.gz -C $REMOTE_DIR && rm /tmp/web_build.tar.gz && systemctl restart nginx"
 
-log "📂 Giải nén và cập nhật trên VPS..."
-ssh $SERVER_USER@$SERVER_IP << EOF
-  set -e
-  RELEASE_DIR="\$DEPLOY_DIR/releases/$(basename $ARCHIVE_NAME .tar.gz)"
-  mkdir -p \$RELEASE_DIR
-  tar -xzf /tmp/$ARCHIVE_NAME -C \$RELEASE_DIR
-  rm /tmp/$ARCHIVE_NAME
+echo "✅ Deploy thành công!"
 
-  if [ -d "\$DEPLOY_DIR/current" ]; then
-    mv \$DEPLOY_DIR/current \$DEPLOY_DIR/previous_$(date +%Y%m%d%H%M%S)
-  fi
-
-  ln -sfn \$RELEASE_DIR \$DEPLOY_DIR/current
-  sudo systemctl reload nginx
-EOF
-
-rm $ARCHIVE_NAME
-
-log "✅ Deploy hoàn tất! Website đã cập nhật."
+# CẦN CÀI tar
+# dnf install -y tar
+# chmod +x deploy_tar.sh
+# ./deploy_tar.sh

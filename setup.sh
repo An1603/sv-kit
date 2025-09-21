@@ -1,71 +1,60 @@
 #!/bin/bash
+# setup.sh - Cài đặt hoặc update môi trường n8n + Flutter Web + Nginx Proxy Manager
+# Dùng với: curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
+
 set -e
-source <(curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/utils.sh)
 
-DOMAIN=$1
+REPO_URL="https://github.com/An1603/sv-kit.git"
+INSTALL_DIR="/opt/way4"
 
-if [ -z "$DOMAIN" ]; then
-  error "Bạn cần truyền domain khi chạy script!"
-  echo "👉 Ví dụ: ./setup.sh domain.com"
-  exit 1
+if [ -d "$INSTALL_DIR" ]; then
+    echo "=== Phát hiện đã có cài đặt trước đó tại $INSTALL_DIR ==="
+    cd $INSTALL_DIR
+
+    echo "=== Pull code mới nhất từ repo ==="
+    git pull origin main
+
+    echo "=== Update Docker images và restart containers ==="
+    docker compose pull
+    docker compose up -d
+
+    echo "✅ Update hoàn tất!"
+else
+    echo "=== Cập nhật hệ thống lần đầu ==="
+    apt-get update -y && apt-get upgrade -y
+
+    echo "=== Cài Docker & Docker Compose lần đầu ==="
+    apt-get install -y \
+        ca-certificates \
+        curl \
+        gnupg \
+        lsb-release \
+        git
+
+    mkdir -p /etc/apt/keyrings
+    if [ ! -f /etc/apt/keyrings/docker.gpg ]; then
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    fi
+
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    apt-get update -y
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+    systemctl enable docker
+    systemctl start docker
+
+    echo "=== Clone repo sv-kit về $INSTALL_DIR ==="
+    git clone $REPO_URL $INSTALL_DIR
+
+    cd $INSTALL_DIR
+
+    echo "=== Khởi động Docker Compose lần đầu ==="
+    docker compose up -d
+
+    echo "=== Setup hoàn tất lần đầu ==="
+    echo "👉 Truy cập http://<server-ip>:81 để vào Nginx Proxy Manager"
+    echo "   Mặc định: admin@example.com / changeme"
 fi
-
-log "🔄 Bắt đầu cài đặt môi trường VPS cho domain: $DOMAIN ..."
-
-log "📦 Cập nhật hệ thống..."
-sudo dnf update -y
-
-log "📦 Cài Nginx..."
-sudo dnf install -y epel-release
-sudo dnf install -y nginx
-
-log "📦 Cài Node.js (dùng cho Flutter web tool nếu cần)..."
-sudo dnf module install -y nodejs:14
-
-log "🚀 Khởi động và bật Nginx..."
-sudo systemctl enable nginx
-sudo systemctl start nginx
-
-log "📂 Tạo thư mục f_web..."
-sudo mkdir -p /var/www/f_web/releases
-sudo mkdir -p /var/www/f_web/current
-sudo chown -R $USER:$USER /var/www/f_web
-
-log "⚙️ Tạo file config nginx cho domain..."
-sudo tee /etc/nginx/conf.d/f_web.conf > /dev/null <<EOL
-server {
-    listen 80;
-    server_name $DOMAIN www.$DOMAIN;
-
-    root /var/www/f_web/current;
-    index index.html;
-
-    location / {
-        try_files \$uri /index.html;
-    }
-}
-EOL
-
-log "🔍 Kiểm tra cấu hình Nginx..."
-sudo nginx -t && sudo systemctl reload nginx
-
-# Cài SSL với certbot (tùy chọn)
-read -p "❓ Bạn có muốn cài HTTPS SSL (Let's Encrypt) cho $DOMAIN (y/n)? " yn
-case $yn in
-    [Yy]* ) 
-        log "📦 Cài certbot..."
-        sudo dnf install -y certbot python3-certbot-nginx
-        log "🔑 Xin chứng chỉ SSL cho $DOMAIN ..."
-        sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN
-        ;;
-    * ) log "⚠️ Bỏ qua cài SSL, website chạy HTTP";;
-esac
-
-log "✅ Setup hoàn tất! Truy cập http://$DOMAIN"
-
-
-
-# CÁCH DÙNG:
-# curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
-
-

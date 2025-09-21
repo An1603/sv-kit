@@ -1,16 +1,16 @@
-
-# setup.sh - Cài môi trường để chạy Flutter Web trên CentOS 8.3
-# Cài Nginx + Certbot.
-# Tạo thư mục /var/www/flutter_web.
-# Cấu hình Nginx với rule cho SPA (try_files $uri /index.html).
-# Restart dịch vụ.
-
 #!/bin/bash
 set -e
 source <(curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/utils.sh)
 
+DOMAIN=$1
 
-log "🔄 Bắt đầu cài đặt môi trường VPS..."
+if [ -z "$DOMAIN" ]; then
+  error "Bạn cần truyền domain khi chạy script!"
+  echo "👉 Ví dụ: ./setup.sh domain.com"
+  exit 1
+fi
+
+log "🔄 Bắt đầu cài đặt môi trường VPS cho domain: $DOMAIN ..."
 
 log "📦 Cập nhật hệ thống..."
 sudo dnf update -y
@@ -31,11 +31,11 @@ sudo mkdir -p /var/www/f_web/releases
 sudo mkdir -p /var/www/f_web/current
 sudo chown -R $USER:$USER /var/www/f_web
 
-log "⚙️ Cấu hình Nginx..."
+log "⚙️ Tạo file config nginx cho domain..."
 sudo tee /etc/nginx/conf.d/f_web.conf > /dev/null <<EOL
 server {
     listen 80;
-    server_name _;
+    server_name $DOMAIN www.$DOMAIN;
 
     root /var/www/f_web/current;
     index index.html;
@@ -49,7 +49,20 @@ EOL
 log "🔍 Kiểm tra cấu hình Nginx..."
 sudo nginx -t && sudo systemctl reload nginx
 
-log "✅ Setup hoàn tất! Web sẽ chạy từ /var/www/f_web/current"
+# Cài SSL với certbot (tùy chọn)
+read -p "❓ Bạn có muốn cài HTTPS SSL (Let's Encrypt) cho $DOMAIN (y/n)? " yn
+case $yn in
+    [Yy]* ) 
+        log "📦 Cài certbot..."
+        sudo dnf install -y certbot python3-certbot-nginx
+        log "🔑 Xin chứng chỉ SSL cho $DOMAIN ..."
+        sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN
+        ;;
+    * ) log "⚠️ Bỏ qua cài SSL, website chạy HTTP";;
+esac
+
+log "✅ Setup hoàn tất! Truy cập http://$DOMAIN"
+
 
 
 # CÁCH DÙNG:

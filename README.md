@@ -1,70 +1,71 @@
-# 🚀 sv-kit
+# sv-kit 🚀
+Bộ cài đặt nhanh cho **n8n + Flutter Web + Nginx Proxy Manager** trên Ubuntu 22.04 LTS
 
-Bộ script để setup, deploy và rollback cho Flutter Web trên VPS.
+## 1. Cài đặt lần đầu
+```bash
+git clone https://github.com/An1603/sv-kit.git
+cd sv-kit
+chmod +x setup.sh update.sh
+./setup.sh
 
-## 📂 Cấu trúc
-- `setup.sh` – Cài môi trường Nginx, Node.js, và thư mục `f_web` trên VPS.
-- `deploy.sh` – Build Flutter web từ local, upload và deploy lên VPS.
-- `rollback.sh` – Rollback về bản deploy trước.
-- `utils.sh` – Các hàm dùng chung (logging, timestamp...).
+HOẶC NHANH NHẤT:
+curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
 
-## ⚙️ 1. Setup VPS lần đầu
-SSH vào VPS rồi chạy:
+
+
+Sau khi chạy xong:
+Vào http://<server-ip>:81
+Tài khoản mặc định: admin@example.com / changeme
+Tạo Proxy Host:
+way4.app → http://n8n:5678
+eurobank.eu.com → http://flutter-web:80
+Bật SSL Let’s Encrypt để chạy HTTPS.
+
+
+Update website Flutter Web
+
+Copy file build f_web.tar.gz vào server:
+
+scp f_web.tar.gz root@<server-ip>:/opt/way4/
+ssh root@<server-ip> "cd /opt/way4 && ./update.sh"
+
+3. Update n8n
+ssh root@<server-ip> "cd /opt/way4 && ./update.sh"
+
+4. Thư mục dữ liệu
+
+n8n_data/ → dữ liệu workflows của n8n
+
+flutter_web/ → source web Flutter đã build
+
+data/ + letsencrypt/ → cấu hình và SSL cho nginx-proxy-manager
+
+
+---
+
+👉 Với repo này bạn chỉ cần:
 
 ```bash
-curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup_no_domain.sh | bash
+git clone https://github.com/An1603/sv-kit.git
+cd sv-kit
+./setup.sh
 
 
-//------------------------------------
-2. Deploy web (chạy trên local)
-Trong thư mục dự án Flutter:
-
-curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_no_domain.sh -o deploy_no_domain.sh
-chmod +x deploy_no_domain.sh
-./deploy.sh
-
-⏪ 3. Rollback (nếu cần)
-SSH vào VPS:
-curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/rollback_no_domain.sh -o rollback_no_domain.sh
-chmod +x rollback_no_domain.sh
-./rollback.sh
-
-
-📌 Lưu ý
-deploy.sh phải chạy từ local vì cần build Flutter web.
-Server sẽ lưu nhiều bản trong /var/www/f_web/releases/.
-rollback.sh chỉ chuyển symbolic link current sang bản trước.
+Là có đủ môi trường.
+Update về sau cực gọn chỉ cần ./update.sh.
 
 
 
 
-Cách chạy
-SSH vào VPS:
-ssh root@46.28.69.11
 
+WEB NEW
+Cách dùng
+Trên máy local, lưu file này thành deploy_web.sh
+nano deploy_web.sh
+(dán code vào rồi CTRL+O, CTRL+X)
 
-Chạy setup với domain:
-curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash -s domain.com
-(Tùy chọn) Nhấn y để cài SSL miễn phí.
+Cấp quyền chạy:
+chmod +x deploy_web.sh
 
-👉 Như vậy bạn chỉ cần 1 lệnh duy nhất là VPS đã sẵn sàng chạy website Flutter web với domain riêng.
-
-
-Deploy website
-Từ máy local, chạy:
-./scripts/deploy.sh example.com
-
-
-Script sẽ build Flutter web
-Nén build/web thành build.tar.gz
-
-Upload lên VPS vào /var/www/example.com
-
-Tự tạo config nginx nếu chưa có
-Reload nginx
-
-3. Rollback (quay lại bản cũ)
-./scripts/rollback.sh example.com
-
-4. Utils
-utils.sh: helper cho việc in log
+Mỗi lần muốn deploy web:
+./deploy_web.sh
