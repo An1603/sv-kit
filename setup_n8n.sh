@@ -1,24 +1,27 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== SV-KIT N8N SETUP ==="
+echo "=== SV-KIT N8N SETUP (SAFE MODE) ==="
 
-read -rp "Nhập domain cho n8n (vd: n8n.example.com): " N8N_DOMAIN
-
-# Cài Docker & Docker Compose nếu chưa có
-if ! command -v docker &>/dev/null; then
-    echo "⚙️ Cài Docker..."
-    apt-get update
-    apt-get install -y docker.io docker-compose
-    systemctl enable docker --now
+# === Nhập domain ===
+if [ -z "${N8N_DOMAIN:-}" ]; then
+    read -rp "Nhập domain cho N8N (vd: n8n.example.com): " N8N_DOMAIN
 fi
 
-# Tạo thư mục
-mkdir -p /opt/n8n
-cd /opt/n8n
+NGINX_CONF="/etc/nginx/nginx.conf"
+SITE_CONF="/etc/nginx/sites-enabled/$N8N_DOMAIN.conf"
 
-# File docker-compose
-cat > docker-compose.yml <<EOF
+# === Cài Docker + Docker Compose nếu chưa có ===
+if ! command -v docker >/dev/null 2>&1; then
+    echo "🐳 Cài đặt Docker..."
+    apt-get update
+    apt-get install -y docker.io docker-compose
+fi
+
+# === Chạy N8N bằng Docker ===
+echo "🚀 Chạy n8n với Docker..."
+mkdir -p /opt/n8n
+cat > /opt/n8n/docker-compose.yml <<EOF
 services:
   n8n:
     image: n8nio/n8n
@@ -26,20 +29,32 @@ services:
     ports:
       - "5678:5678"
     volumes:
-      - .n8n:/home/node/.n8n
+      - /opt/n8n:/home/node/.n8n
 EOF
 
-docker compose up -d
+docker compose -f /opt/n8n/docker-compose.yml up -d
 
-# Cấu hình Nginx
-NGINX_CONF="/etc/nginx/sites-available/${N8N_DOMAIN}.conf"
+# === Backup Nginx config trước khi sửa ===
+echo "📦 Backup Nginx config..."
+cp "$NGINX_CONF" "$NGINX_CONF.bak.$(date +%s)"
 
-# Xóa config cũ nếu có
-rm -f "$NGINX_CONF" /etc/nginx/sites-enabled/${N8N_DOMAIN}.conf
+# === Patch nginx.conf để thêm server_names_hash_bucket_size nếu chưa có ===
+if ! grep -q "server_names_hash_bucket_size" "$NGINX_CONF"; then
+    echo "⚙️  Thêm server_names_hash_bucket_size vào nginx.conf..."
+    sed -i '/http {/a \    server_names_hash_bucket_size 128;' "$NGINX_CONF"
+fi
 
-cat > "$NGINX_CONF" <<EOF
+# === Xoá config cũ nếu tồn tại ===
+if [ -f "$SITE_CONF" ]; then
+    echo "🧹 Xoá config cũ của $N8N_DOMAIN..."
+    rm -f "$SITE_CONF"
+fi
+
+# === Tạo site config mới ===
+cat > "$SITE_CONF" <<EOF
 server {
-    server_name ${N8N_DOMAIN};
+    server_name $N8N_DOMAIN;
+
     location / {
         proxy_pass http://localhost:5678;
         proxy_set_header Host \$host;
@@ -50,22 +65,17 @@ server {
 }
 EOF
 
-ln -s "$NGINX_CONF" /etc/nginx/sites-enabled/
-
-# Fix nginx.conf nếu thiếu server_names_hash_bucket_size
-if ! grep -q "server_names_hash_bucket_size" /etc/nginx/nginx.conf; then
-    sed -i '/http {/a \    server_names_hash_bucket_size 128;' /etc/nginx/nginx.conf
-fi
-
-# Kiểm tra và restart nginx
+# === Kiểm tra config ===
+echo "📝 Kiểm tra cấu hình Nginx..."
 if nginx -t; then
-    systemctl restart nginx
+    echo "🔄 Restart Nginx..."
+    systemctl restart nginx || systemctl start nginx
+    echo "✅ Setup hoàn tất!"
+    echo "👉 N8N: http://$N8N_DOMAIN"
 else
     echo "❌ Cấu hình Nginx lỗi, rollback..."
-    rm -f "$NGINX_CONF" /etc/nginx/sites-enabled/${N8N_DOMAIN}.conf
-    systemctl reload nginx
+    mv "$NGINX_CONF.bak."* "$NGINX_CONF" 2>/dev/null || true
+    rm -f "$SITE_CONF"
+    nginx -t && systemctl restart nginx || echo "⚠️ Rollback xong nhưng Nginx vẫn lỗi, cần kiểm tra thủ công."
     exit 1
 fi
-
-echo "✅ N8N setup xong!"
-echo "👉 Truy cập: http://${N8N_DOMAIN}"

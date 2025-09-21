@@ -32,6 +32,9 @@ sudo apt update && sudo apt install -y docker.io docker-compose nginx
 Chạy script setup.sh trực tiếp từ GitHub:
 curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
 
+curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup_n8n.sh | bash
+
+
 N8N_DOMAIN=n8n.way4.app FLUTTER_DOMAIN=eurobank.eu.com
 curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
 
