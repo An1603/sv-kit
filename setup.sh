@@ -69,8 +69,18 @@ sudo ln -sf /etc/nginx/sites-available/n8n.conf /etc/nginx/sites-enabled/n8n.con
 
 # --- Test & restart Nginx ---
 echo "🔄 Kiểm tra & restart Nginx..."
-sudo nginx -t
-sudo systemctl restart nginx || sudo systemctl start nginx
+if sudo nginx -t; then
+  sudo systemctl stop nginx
+  sleep 2
+  sudo systemctl start nginx || {
+    echo "❌ Không thể start nginx, thử kill tiến trình cũ..."
+    sudo pkill -9 nginx || true
+    sudo systemctl start nginx
+  }
+else
+  echo "❌ Cấu hình Nginx lỗi, dừng setup!"
+  exit 1
+fi
 
 # --- Cài Certbot để cấp SSL ---
 if ! command -v certbot &> /dev/null; then

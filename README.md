@@ -2,6 +2,8 @@
 Bộ cài đặt nhanh cho **n8n + Flutter Web + Nginx Proxy Manager** trên Ubuntu 22.04 LTS
 
 ## 1. Cài đặt lần đầu
+curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/cleanup.sh | bash
+
 Cách 1: Dùng ENV trước khi chạy
 Bạn set biến môi trường rồi chạy script:
 
