@@ -1,102 +1,55 @@
 #!/bin/bash
-# setup.sh - Script cài đặt môi trường cho VPS Ubuntu 22.04
-# Hỗ trợ: N8N + Flutter web + Nginx + SSL (Let's Encrypt)
-
 set -e
 
-# --- Nhập domain ---
+# =============================
+# Setup n8n + Flutter web + Nginx + SSL
+# =============================
+
+# --- Hỏi domain cho n8n nếu chưa có ---
 if [ -z "$N8N_DOMAIN" ]; then
   read -p "👉 Nhập domain cho n8n (ví dụ: n8n.way4.app): " N8N_DOMAIN
+  if [ -z "$N8N_DOMAIN" ]; then
+    echo "❌ Bạn chưa nhập domain cho n8n!"
+    exit 1
+  fi
 fi
 
-if [ -z "$WEB_DOMAIN" ]; then
-  read -p "👉 Nhập domain cho Flutter web (ví dụ: eurobank.eu.com): " WEB_DOMAIN
-fi
-
-if [ -z "$N8N_DOMAIN" ] || [ -z "$WEB_DOMAIN" ]; then
-  echo "❌ Bạn chưa nhập đủ domain!"
-  exit 1
-fi
-
-echo "✅ Domain N8N: $N8N_DOMAIN"
-echo "✅ Domain Web: $WEB_DOMAIN"
-
-# --- Update hệ thống ---
-echo "🔄 Update hệ thống..."
+# --- Cập nhật hệ thống ---
+echo "📦 Cập nhật hệ thống..."
 sudo apt-get update -y
 sudo apt-get upgrade -y
 
-# --- Cài Docker & Compose ---
+# --- Cài đặt Docker & Docker Compose nếu chưa có ---
 if ! command -v docker &> /dev/null; then
-  echo "🐳 Cài Docker..."
-  sudo apt-get install -y ca-certificates curl gnupg lsb-release
-  sudo mkdir -p /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  sudo apt-get update -y
-  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+  echo "🐳 Cài đặt Docker..."
+  curl -fsSL https://get.docker.com | sh
   sudo systemctl enable docker --now
-else
-  echo "✅ Docker đã được cài."
 fi
 
-if ! command -v docker compose &> /dev/null; then
-  echo "🐳 Cài Docker Compose plugin..."
-  sudo apt-get install -y docker-compose-plugin
+if ! command -v docker-compose &> /dev/null; then
+  echo "🐙 Cài đặt Docker Compose..."
+  sudo apt-get install -y docker-compose
 fi
 
-# --- Cài Nginx + Certbot ---
+# --- Cài đặt Nginx ---
 if ! command -v nginx &> /dev/null; then
-  echo "🌐 Cài Nginx..."
+  echo "🌐 Cài đặt Nginx..."
   sudo apt-get install -y nginx
+  sudo systemctl enable nginx
+  sudo systemctl start nginx
 fi
 
-if ! command -v certbot &> /dev/null; then
-  echo "🔒 Cài Certbot..."
-  sudo apt-get install -y certbot python3-certbot-nginx
+# --- Xóa config cũ nếu tồn tại ---
+NGINX_CONF="/etc/nginx/sites-available/n8n.conf"
+if [ -f "$NGINX_CONF" ]; then
+  echo "⚠️ Xóa config Nginx cũ cho $N8N_DOMAIN..."
+  sudo rm -f "$NGINX_CONF"
+  sudo rm -f /etc/nginx/sites-enabled/n8n.conf || true
 fi
 
-sudo systemctl enable nginx --now
-
-# --- Tạo thư mục ---
-sudo mkdir -p /var/www/eurobank
-sudo chown -R www-data:www-data /var/www/eurobank
-
-# --- Deploy N8N ---
-echo "⚙️ Deploy n8n với Docker Compose..."
-mkdir -p ~/n8n
-cat > ~/n8n/docker-compose.yml <<EOF
-services:
-  n8n:
-    image: n8nio/n8n
-    restart: always
-    ports:
-      - "5678:5678"
-    volumes:
-      - ./n8n_data:/home/node/.n8n
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=admin
-      - WEBHOOK_URL=https://$N8N_DOMAIN/
-EOF
-
-docker compose -f ~/n8n/docker-compose.yml up -d
-
-# --- Xóa config Nginx cũ nếu có ---
-echo "⚠️ Tìm & xóa config Nginx cũ có chứa domain..."
-for conf in /etc/nginx/sites-available/* /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*; do
-  if [ -f "$conf" ] && (grep -q "$N8N_DOMAIN" "$conf" || grep -q "$WEB_DOMAIN" "$conf"); then
-    echo "🗑️  Xóa $conf"
-    sudo rm -f "$conf"
-  fi
-done
-
-# --- Nginx config cho N8N ---
-NGINX_CONF_N8N="/etc/nginx/sites-available/n8n.conf"
-cat > ~/n8n.conf <<EOF
+# --- Tạo config Nginx mới ---
+echo "📝 Tạo config Nginx cho n8n ($N8N_DOMAIN)..."
+cat <<EOF | sudo tee /etc/nginx/sites-available/n8n.conf > /dev/null
 server {
     server_name $N8N_DOMAIN;
 
@@ -104,42 +57,51 @@ server {
         proxy_pass http://localhost:5678/;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_http_version 1.1;
+        proxy_cache_bypass \$http_upgrade;
     }
 }
 EOF
 
-sudo mv ~/n8n.conf $NGINX_CONF_N8N
-sudo ln -sf $NGINX_CONF_N8N /etc/nginx/sites-enabled/
+sudo ln -sf /etc/nginx/sites-available/n8n.conf /etc/nginx/sites-enabled/n8n.conf
 
-# --- Nginx config cho Flutter Web ---
-NGINX_CONF_WEB="/etc/nginx/sites-available/eurobank.conf"
-cat > ~/eurobank.conf <<EOF
-server {
-    server_name $WEB_DOMAIN;
-
-    root /var/www/eurobank;
-    index index.html;
-
-    location / {
-        try_files \$uri /index.html;
-    }
-}
-EOF
-
-sudo mv ~/eurobank.conf $NGINX_CONF_WEB
-sudo ln -sf $NGINX_CONF_WEB /etc/nginx/sites-enabled/
-
-# --- Kiểm tra & restart Nginx ---
-echo "📝 Kiểm tra & restart Nginx..."
+# --- Test & restart Nginx ---
+echo "🔄 Kiểm tra & restart Nginx..."
 sudo nginx -t
 sudo systemctl restart nginx || sudo systemctl start nginx
 
-# --- Cài SSL ---
-echo "🔒 Cài SSL với Let's Encrypt..."
-sudo certbot --nginx -d $N8N_DOMAIN -d $WEB_DOMAIN --non-interactive --agree-tos -m admin@$N8N_DOMAIN || true
+# --- Cài Certbot để cấp SSL ---
+if ! command -v certbot &> /dev/null; then
+  echo "🔐 Cài đặt Certbot..."
+  sudo apt-get install -y certbot python3-certbot-nginx
+fi
 
-echo "🎉 Hoàn tất cài đặt!"
-echo "👉 N8N: https://$N8N_DOMAIN"
-echo "👉 Flutter web: https://$WEB_DOMAIN"
+echo "🔐 Xin chứng chỉ SSL cho $N8N_DOMAIN..."
+sudo certbot --nginx -d $N8N_DOMAIN --non-interactive --agree-tos -m admin@$N8N_DOMAIN || true
+
+# --- Setup thư mục cho Flutter Web ---
+echo "📂 Tạo thư mục cho Flutter web..."
+sudo mkdir -p /var/www/eurobank
+sudo chown -R www-data:www-data /var/www/eurobank
+
+# --- Docker Compose cho n8n ---
+echo "🐳 Setup n8n bằng Docker Compose..."
+mkdir -p ~/n8n
+cat <<EOF > ~/n8n/docker-compose.yml
+services:
+  n8n:
+    image: n8nio/n8n
+    ports:
+      - "5678:5678"
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    restart: always
+EOF
+
+cd ~/n8n
+docker-compose up -d
+
+echo "✅ Setup hoàn tất!"
+echo "🌐 Truy cập n8n tại: https://$N8N_DOMAIN"
