@@ -19,6 +19,7 @@ Tài khoản mặc định: admin@example.com / changeme
 Tạo Proxy Host:
 way4.app → http://n8n:5678
 eurobank.eu.com → http://flutter-web:80
+
 Bật SSL Let’s Encrypt để chạy HTTPS.
 
 
