@@ -25,12 +25,17 @@ ENCRYPTION_KEY_FILE="$BACKUP_DIR/n8n_encryption_key.txt"
 echo "🔑 Kiểm tra kết nối SSH..."
 for IP in "$OLD_SERVER_IP" "$NEW_SERVER_IP"; do
     if ! ssh -q -o ConnectTimeout=5 "$SERVER_USER@$IP" "echo 'Connected'" 2>/dev/null; then
-        echo "❌ Lỗi SSH đến $IP. Thiết lập SSH key: ssh-keygen -t rsa && ssh-copy-id root@$IP"
+        echo "❌ Lỗi SSH đến $IP. Kiểm tra:"
+        echo "1. SSH key: ssh-keygen -t rsa && ssh-copy-id root@$IP"
+        echo "2. Firewall: ssh root@$IP 'ufw allow 22'"
+        echo "3. SSH daemon: ssh root@$IP 'systemctl status sshd'"
         exit 1
+    else
+        echo "✅ SSH đến $IP OK"
     fi
 done
 
-# Kiểm tra DNS (đảm bảo domain trỏ đúng)
+# Kiểm tra DNS
 echo "📡 Kiểm tra DNS cho n8n.way4.app và eu.way4.app..."
 for DOMAIN in n8n.way4.app eu.way4.app; do
     DOMAIN_IP=$(dig +short "$DOMAIN" | tail -n 1)
@@ -61,10 +66,10 @@ ssh "$SERVER_USER@$OLD_SERVER_IP" "
 
 # Tải backup về local
 echo "📥 Tải backup về local..."
-scp "$SERVER_USER@$OLD_SERVER_IP:/root/n8n_data.tar.gz" "$VOLUME_BACKUP_FILE"
-scp "$SERVER_USER@$OLD_SERVER_IP:/root/n8n_encryption_key.txt" "$ENCRYPTION_KEY_FILE"
+scp "$SERVER_USER@$OLD_SERVER_IP:/root/n8n_data.tar.gz" "$VOLUME_BACKUP_FILE" || { echo "❌ Lỗi tải n8n_data.tar.gz"; exit 1; }
+scp "$SERVER_USER@$OLD_SERVER_IP:/root/n8n_encryption_key.txt" "$ENCRYPTION_KEY_FILE" || { echo "❌ Lỗi tải n8n_encryption_key.txt"; exit 1; }
 
-# Kiểm tra server mới: đã có n8n chưa?
+# Kiểm tra server mới
 echo "🔍 Kiểm tra server mới ($NEW_SERVER_IP)..."
 if ssh "$SERVER_USER@$NEW_SERVER_IP" "[ -d '$NEW_N8N_DIR' ] && [ -f '$NEW_N8N_DIR/docker-compose.yml' ]"; then
     echo "n8n đã tồn tại trên server mới, chỉ restore dữ liệu."
@@ -98,8 +103,8 @@ fi
 
 # Upload backup lên server mới
 echo "📤 Upload backup lên server mới..."
-scp "$VOLUME_BACKUP_FILE" "$SERVER_USER@$NEW_SERVER_IP:/root/"
-scp "$ENCRYPTION_KEY_FILE" "$SERVER_USER@$NEW_SERVER_IP:/root/"
+scp "$VOLUME_BACKUP_FILE" "$SERVER_USER@$NEW_SERVER_IP:/root/" || { echo "❌ Lỗi upload n8n_data.tar.gz"; exit 1; }
+scp "$ENCRYPTION_KEY_FILE" "$SERVER_USER@$NEW_SERVER_IP:/root/" || { echo "❌ Lỗi upload n8n_encryption_key.txt"; exit 1; }
 
 # Restore trên server mới
 echo "🔄 Restore dữ liệu trên server mới..."
@@ -118,14 +123,13 @@ ssh "$SERVER_USER@$NEW_SERVER_IP" "
     echo '✅ Restore hoàn tất trên server mới!'
 "
 
-# Kiểm tra Caddyfile để đảm bảo không bị ảnh hưởng
+# Kiểm tra Caddyfile
 echo "🔍 Kiểm tra Caddyfile trên server mới..."
 ssh "$SERVER_USER@$NEW_SERVER_IP" "
     if grep -q 'n8n.way4.app' /etc/caddy/Caddyfile && grep -q 'eu.way4.app' /etc/caddy/Caddyfile; then
         echo 'Caddyfile OK, domain n8n.way4.app và eu.way4.app không bị ảnh hưởng.'
     else
         echo '⚠️ Cảnh báo: Caddyfile có thể thiếu cấu hình cho n8n.way4.app hoặc eu.way4.app.'
-        echo 'Kiểm tra: cat /etc/caddy/Caddyfile'
         echo 'Khôi phục nếu cần: cp /etc/caddy/Caddyfile.bak* /etc/caddy/Caddyfile && systemctl reload caddy'
     fi
 "
@@ -138,4 +142,3 @@ echo "👉 Kiểm tra n8n: https://n8n.way4.app (Username: admin, Password: chan
 echo "👉 Kiểm tra web: https://eu.way4.app (nên không bị ảnh hưởng)"
 echo "📜 Log n8n: ssh root@$NEW_SERVER_IP 'docker logs n8n-n8n-1'"
 echo "📜 Log Caddy: ssh root@$NEW_SERVER_IP 'journalctl -xeu caddy.service'"
-echo "⚠️ Nếu đổi domain, cập nhật /etc/caddy/Caddyfile và reload: systemctl reload caddy"
