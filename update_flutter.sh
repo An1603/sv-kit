@@ -1,40 +1,56 @@
 #!/bin/bash
-set -euo pipefail
+set -e
 
-echo "=== UPDATE FLUTTER WEB ON SERVER ==="
+echo "=== UPDATE FLUTTER WEB ==="
 
-# Nhập domain Flutter Web (có thể cố định sẵn nếu muốn)
+# Kiểm tra root
+if [[ $EUID -ne 0 ]]; then
+    echo "Phải chạy với quyền root!"
+    exit 1
+fi
+
+# Nhập domain
 read -rp "Nhập domain Flutter Web (vd: app.example.com): " FLUTTER_DOMAIN
-
-APP_DIR="/var/www/$FLUTTER_DOMAIN"
-BACKUP_DIR="${APP_DIR}_backup_$(date +%Y%m%d%H%M%S)"
-
-# Kiểm tra thư mục tồn tại
-if [ ! -d "$APP_DIR" ]; then
-  echo "❌ Thư mục $APP_DIR chưa tồn tại. Hãy chạy setup.sh trước."
-  exit 1
+if [[ -z "$FLUTTER_DOMAIN" ]]; then
+    echo "Bạn chưa nhập domain!"
+    exit 1
 fi
 
-# Backup thư mục cũ
-echo "📦 Backup thư mục cũ -> $BACKUP_DIR"
-mv "$APP_DIR" "$BACKUP_DIR"
-
-# Tạo thư mục mới
-mkdir -p "$APP_DIR"
-
-# Nhận file zip từ local (scp đã upload vào /tmp trước đó)
-if [ -f "/tmp/flutter_build.zip" ]; then
-  echo "📂 Giải nén Flutter build mới..."
-  unzip -q -o /tmp/flutter_build.zip -d "$APP_DIR"
-  rm -f /tmp/flutter_build.zip
-else
-  echo "❌ Không tìm thấy /tmp/flutter_build.zip"
-  exit 1
+# Kiểm tra file nén
+if [[ ! -f "./f_web.tar.gz" ]]; then
+    echo "❌ f_web.tar.gz không tồn tại!"
+    exit 1
 fi
 
-# Restart nginx
-echo "🔄 Restart Nginx..."
-nginx -t && systemctl restart nginx
+WEB_DIR="/var/www/$FLUTTER_DOMAIN"
 
-echo "✅ Update thành công!"
-echo "👉 Truy cập: http://$FLUTTER_DOMAIN"
+# Backup cũ nếu tồn tại
+if [[ -d "$WEB_DIR" ]]; then
+    mv "$WEB_DIR" "${WEB_DIR}_backup_$(date +%s)"
+fi
+
+mkdir -p "$WEB_DIR"
+
+# Giải nén
+tar -xzf f_web.tar.gz -C "$WEB_DIR" --strip-components=1
+
+# Set quyền
+chown -R www-data:www-data "$WEB_DIR"
+
+# Cập nhật Caddyfile
+CADDYFILE="/etc/caddy/Caddyfile"
+if ! grep -q "$FLUTTER_DOMAIN" "$CADDYFILE"; then
+    echo "$FLUTTER_DOMAIN {" >> "$CADDYFILE"
+    echo "    root * $WEB_DIR" >> "$CADDYFILE"
+    echo "    file_server" >> "$CADDYFILE"
+    echo "    encode gzip" >> "$CADDYFILE"
+    echo "    tls admin@$FLUTTER_DOMAIN" >> "$CADDYFILE"
+    echo "}" >> "$CADDYFILE"
+fi
+
+# Reload Caddy
+caddy validate --config "$CADDYFILE"
+systemctl reload caddy
+
+echo "✅ Flutter Web đã được deploy!"
+echo "👉 URL: https://$FLUTTER_DOMAIN"

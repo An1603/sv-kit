@@ -1,81 +1,92 @@
 #!/bin/bash
-set -euo pipefail
+set -e
 
-echo "=== SV-KIT N8N SETUP (SAFE MODE) ==="
+echo "=== SV-KIT N8N SETUP ==="
 
-# === Nhập domain ===
-if [ -z "${N8N_DOMAIN:-}" ]; then
-    read -rp "Nhập domain cho N8N (vd: n8n.example.com): " N8N_DOMAIN
+# Kiểm tra quyền root
+if [[ $EUID -ne 0 ]]; then
+    echo "This script must be run as root."
+    exit 1
 fi
 
-NGINX_CONF="/etc/nginx/nginx.conf"
-SITE_CONF="/etc/nginx/sites-enabled/$N8N_DOMAIN.conf"
+# Nhập domain
+read -rp "Nhập domain cho N8N (vd: n8n.example.com): " N8N_DOMAIN
+if [[ -z "$N8N_DOMAIN" ]]; then
+    echo "Bạn chưa nhập domain!"
+    exit 1
+fi
 
-# === Cài Docker + Docker Compose nếu chưa có ===
+# Kiểm tra domain trỏ về server
+SERVER_IP=$(curl -s https://api.ipify.org)
+DOMAIN_IP=$(dig +short $N8N_DOMAIN)
+
+if [[ "$SERVER_IP" != "$DOMAIN_IP" ]]; then
+    echo "Domain $N8N_DOMAIN chưa trỏ về server $SERVER_IP."
+    exit 1
+fi
+
+echo "📦 Cập nhật server..."
+apt update -y && apt upgrade -y
+
+# Cài Docker nếu chưa có
 if ! command -v docker >/dev/null 2>&1; then
-    echo "🐳 Cài đặt Docker..."
-    apt-get update
-    apt-get install -y docker.io docker-compose
+    echo "🐳 Cài Docker..."
+    apt install -y docker.io docker-compose
+    systemctl enable docker --now
 fi
 
-# === Chạy N8N bằng Docker ===
-echo "🚀 Chạy n8n với Docker..."
+# Cài Caddy nếu chưa có
+if ! command -v caddy >/dev/null 2>&1; then
+    echo "🛡 Cài Caddy..."
+    apt install -y debian-keyring debian-archive-keyring apt-transport-https
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+    apt update
+    apt install -y caddy
+fi
+
+# Backup Caddyfile cũ
+CADDYFILE="/etc/caddy/Caddyfile"
+if [[ -f "$CADDYFILE" ]]; then
+    cp "$CADDYFILE" "${CADDYFILE}.bak_$(date +%s)"
+fi
+
+# Tạo Caddyfile mới
+cat > "$CADDYFILE" <<EOF
+$N8N_DOMAIN {
+    reverse_proxy localhost:5678
+    encode gzip
+    tls admin@$N8N_DOMAIN
+}
+EOF
+
+# Chạy Docker n8n
+echo "🚀 Khởi chạy n8n..."
 mkdir -p /opt/n8n
-cat > /opt/n8n/docker-compose.yml <<EOF
+cat > /opt/n8n/docker-compose.yml <<EOL
+version: '3'
 services:
   n8n:
     image: n8nio/n8n
     restart: always
     ports:
       - "5678:5678"
-    volumes:
-      - /opt/n8n:/home/node/.n8n
-EOF
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=changeme
+EOL
 
-docker compose -f /opt/n8n/docker-compose.yml up -d
+docker-compose -f /opt/n8n/docker-compose.yml up -d
 
-# === Backup Nginx config trước khi sửa ===
-echo "📦 Backup Nginx config..."
-cp "$NGINX_CONF" "$NGINX_CONF.bak.$(date +%s)"
-
-# === Patch nginx.conf để thêm server_names_hash_bucket_size nếu chưa có ===
-if ! grep -q "server_names_hash_bucket_size" "$NGINX_CONF"; then
-    echo "⚙️  Thêm server_names_hash_bucket_size vào nginx.conf..."
-    sed -i '/http {/a \    server_names_hash_bucket_size 128;' "$NGINX_CONF"
+# Restart Caddy an toàn
+if ! systemctl is-active --quiet caddy; then
+    systemctl start caddy
 fi
+systemctl enable caddy
+caddy validate --config "$CADDYFILE" || { echo "❌ Caddy config lỗi, rollback..."; mv "${CADDYFILE}.bak_$(date +%s)" "$CADDYFILE"; systemctl restart caddy; exit 1; }
+systemctl reload caddy
 
-# === Xoá config cũ nếu tồn tại ===
-if [ -f "$SITE_CONF" ]; then
-    echo "🧹 Xoá config cũ của $N8N_DOMAIN..."
-    rm -f "$SITE_CONF"
-fi
-
-# === Tạo site config mới ===
-cat > "$SITE_CONF" <<EOF
-server {
-    server_name $N8N_DOMAIN;
-
-    location / {
-        proxy_pass http://localhost:5678;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-}
-EOF
-
-# === Kiểm tra config ===
-echo "📝 Kiểm tra cấu hình Nginx..."
-if nginx -t; then
-    echo "🔄 Restart Nginx..."
-    systemctl restart nginx || systemctl start nginx
-    echo "✅ Setup hoàn tất!"
-    echo "👉 N8N: http://$N8N_DOMAIN"
-else
-    echo "❌ Cấu hình Nginx lỗi, rollback..."
-    mv "$NGINX_CONF.bak."* "$NGINX_CONF" 2>/dev/null || true
-    rm -f "$SITE_CONF"
-    nginx -t && systemctl restart nginx || echo "⚠️ Rollback xong nhưng Nginx vẫn lỗi, cần kiểm tra thủ công."
-    exit 1
-fi
+echo "✅ Setup hoàn tất!"
+echo "👉 N8N: https://$N8N_DOMAIN"
+echo "⚠️ Đừng quên đổi password n8n trong /opt/n8n/docker-compose.yml trước khi đưa vào production!"
