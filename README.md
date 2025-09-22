@@ -25,7 +25,6 @@ n8n.way4.app
 eu.way4.app
 kythuat360@gmail.com
 
-
 UP WEB TỪ LOCAL: 
 Để tải về Mac:
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_flutter_web.sh > deploy_flutter_web.sh && chmod +x deploy_flutter_web.sh
@@ -34,6 +33,9 @@ CHẠY:
 ./deploy_flutter_web.sh
 
 
+
+
+------------------------------------------------------------------------------------------
 BACKUP N8N DATA:
 Tải về Mac:
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_backup_migrate.sh > n8n_backup_migrate.sh && chmod +x n8n_backup_migrate.sh
@@ -42,7 +44,27 @@ chmod +x n8n_backup_migrate.sh
 ./n8n_backup_migrate.sh
 
 
-curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_daily_backup.sh > /opt/n8n/n8n_daily_backup.sh
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_daily_backup.sh > n8n_daily_backup.sh && chmod +x n8n_daily_backup.sh && sudo ./n8n_daily_backup.sh
+
+Cấu hình rclone với Google Drive
+rclone config
+Chọn n (new remote), đặt tên gdrive.
+
+Chọn drive (Google Drive).
+Để trống client_id và client_secret.
+Chọn 1 (scope: full access).
+Để trống root_folder_id và service_account_file.
+Chọn n (không dùng auto config), sau đó y (yes) để mở trình duyệt trên máy khác (nếu server không có GUI, dùng máy local để lấy code xác thực).
+Dán code xác thực vào terminal server.
+Chọn n (không dùng team drive).
+Xác nhận config: y.
+
+Kiểm tra: rclone ls gdrive: (liệt kê file trên Google Drive).
+
+
+
+
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_daily_backup.sh > /home/n8n/n8n_daily_backup.sh
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_restore.sh > /opt/n8n/n8n_restore.sh
 chmod +x /opt/n8n/n8n_*.sh
 
