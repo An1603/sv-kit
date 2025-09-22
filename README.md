@@ -13,3 +13,7 @@ curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/cleanup4caddy.sh 
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/setup_n8n.sh > setup_n8n.sh && chmod +x setup_n8n.sh && sudo ./setup_n8n.sh
 
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/setup_flutter_web.sh > setup_flutter_web.sh && chmod +x setup_flutter_web.sh && sudo ./setup_flutter_web.sh
+
+n8n.way4.app
+eu.way4.app
+kythuat360@gmail.com

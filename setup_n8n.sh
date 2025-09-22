@@ -131,3 +131,6 @@ echo "🔑 Password: $N8N_PASSWORD"
 echo "⚠️ Save the password above! Update it in /opt/n8n/docker-compose.yml for production."
 echo "📜 To check Caddy logs: journalctl -xeu caddy.service"
 echo "📜 To check n8n logs: docker logs n8n-n8n-1"
+
+
+
