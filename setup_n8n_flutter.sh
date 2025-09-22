@@ -167,4 +167,5 @@ N8N_PASS=$(grep N8N_BASIC_AUTH_PASSWORD /opt/n8n/docker-compose.yml | cut -d'=' 
 echo "✅ Setup hoàn tất!"
 echo "👉 N8N: https://n8n.way4.app"
 echo "👤 Username: admin"
-echo "🔑 Password: $N8
+echo "🔑 Password: $N8N_PASS
+echo "👉 WEB: https://eu.way4.app"

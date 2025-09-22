@@ -1,6 +1,10 @@
 # 🚀 SV-KIT
 ## ⚙️ Yêu cầu hệ thống
 - Ubuntu 20.04/22.04/24.04
+- ssh root@46.28.69.11
+- n8n.way4.app
+- eu.way4.app
+- kythuat360@gmail.com
 - Quyền `sudo`
 
 
@@ -20,3 +24,7 @@ curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/setup_n8n_flutter
 n8n.way4.app
 eu.way4.app
 kythuat360@gmail.com
+
+
+UP WEB: 
+Để tải về Mac: curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_flutter_web.sh > deploy_flutter_web.sh && chmod +x deploy_flutter_web.sh
