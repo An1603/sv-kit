@@ -1,17 +1,13 @@
 #!/bin/bash
 set -e
 
-echo "=== SV-KIT N8N & FLUTTER WEB SETUP ==="
+echo "=== SETUP N8N VÀ WEB VỚI CADDY (KHÔNG XUNG ĐỘT) ==="
 
 # Kiểm tra quyền root
 if [[ $EUID -ne 0 ]]; then
     echo "Script này phải được chạy với quyền root."
     exit 1
 fi
-
-# Định nghĩa domain
-N8N_DOMAIN="n8n.way4.app"
-FLUTTER_DOMAIN="eu.way4.app"
 
 # Nhập email cho SSL (tùy chọn)
 read -rp "Nhập email admin cho SSL (để trống để dùng Let’s Encrypt tự động): " ADMIN_EMAIL
@@ -21,41 +17,45 @@ else
     echo "Sử dụng email: $ADMIN_EMAIL"
 fi
 
-# Kiểm tra domain trỏ về server
-SERVER_IP=$(curl -s https://api.ipify.org)
-N8N_DOMAIN_IP=$(dig +short "$N8N_DOMAIN" | tail -n 1)
-FLUTTER_DOMAIN_IP=$(dig +short "$FLUTTER_DOMAIN" | tail -n 1)
-if [[ -z "$N8N_DOMAIN_IP" || "$SERVER_IP" != "$N8N_DOMAIN_IP" ]]; then
-    echo "Domain $N8N_DOMAIN không trỏ về IP server $SERVER_IP (IP nhận được: $N8N_DOMAIN_IP)."
-    echo "Vui lòng cập nhật DNS và thử lại."
-    exit 1
-fi
-if [[ -z "$FLUTTER_DOMAIN_IP" || "$SERVER_IP" != "$FLUTTER_DOMAIN_IP" ]]; then
-    echo "Domain $FLUTTER_DOMAIN không trỏ về IP server $SERVER_IP (IP nhận được: $FLUTTER_DOMAIN_IP)."
-    echo "Vui lòng cập nhật DNS và thử lại."
-    exit 1
-fi
-
-# Kiểm tra cổng 80 và 443
+# Kiểm tra cổng 80/443 (phải trống để Caddy dùng)
 if ss -tuln | grep -q ':80\|:443'; then
-    echo "Cổng 80 hoặc 443 đang được sử dụng. Đang kiểm tra tiến trình..."
-    lsof -i :80 -i :443
-    echo "Vui lòng dừng các dịch vụ xung đột (như Apache, Nginx, hoặc Docker container)."
-    echo "Gợi ý: Dùng 'docker ps' để tìm container chiếm cổng, sau đó 'docker stop <container_id>'."
+    echo "Cổng 80 hoặc 443 đang được sử dụng. Dừng dịch vụ xung đột:"
+    sudo lsof -i :80
+    sudo lsof -i :443
+    echo "Dừng bằng: sudo kill -9 <PID> hoặc sudo systemctl stop <dịch_vụ>"
     exit 1
 fi
 
-# Cài đặt các gói cần thiết
-echo "📦 Cập nhật và cài đặt các gói cần thiết..."
-apt update -y && apt upgrade -y
-apt install -y curl docker.io docker-compose net-tools
+# Cập nhật hệ thống và xử lý xung đột gói
+echo "📦 Cập nhật hệ thống và xử lý xung đột gói..."
+apt update
+apt upgrade -y
+apt autoremove -y
+apt install -f
 
-# Khởi động Docker
-systemctl enable docker --now
+# Xóa containerd cũ để tránh xung đột với containerd.io
+if dpkg -l | grep -q containerd; then
+    echo "Xóa containerd cũ để tránh xung đột..."
+    apt remove -y containerd
+    apt autoremove -y
+fi
 
-# Cài đặt Caddy nếu chưa có
+# Bỏ giữ gói nếu có
+if dpkg --get-selections | grep -q hold; then
+    echo "Bỏ giữ các gói bị hold..."
+    dpkg --get-selections | grep hold | awk '{print $1}' | xargs -r apt-mark unhold
+fi
+
+# Cài Docker nếu chưa có
+if ! command -v docker >/dev/null 2>&1; then
+    echo "🐳 Cài Docker..."
+    apt install -y docker.io docker-compose
+    systemctl enable docker --now
+fi
+
+# Cài Caddy nếu chưa có
 if ! command -v caddy >/dev/null 2>&1; then
-    echo "🛡 Cài đặt Caddy..."
+    echo "🛡 Cài Caddy..."
     apt install -y debian-keyring debian-archive-keyring apt-transport-https
     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
@@ -63,24 +63,92 @@ if ! command -v caddy >/dev/null 2>&1; then
     apt install -y caddy
 fi
 
-# Tạo thư mục và file index.html mẫu cho Flutter Web
-echo "📂 Tạo thư mục và file index.html mẫu cho Flutter Web..."
-mkdir -p /opt/flutter_web/build/web
-cat > /opt/flutter_web/build/web/index.html <<EOF
+# Setup n8n với Docker Compose (cổng nội bộ 5678)
+echo "🚀 Setup n8n trên localhost:5678..."
+mkdir -p /opt/n8n
+cat > /opt/n8n/docker-compose.yml <<EOL
+version: '3.8'
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    restart: always
+    ports:
+      - "5678:5678"  # Nội bộ, không bind 80/443
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=$(openssl rand -base64 12)
+      - N8N_HOST=n8n.way4.app
+      - N8N_PROTOCOL=https
+    volumes:
+      - n8n_data:/home/node/.n8n
+volumes:
+  n8n_data:
+EOL
+
+docker-compose -f /opt/n8n/docker-compose.yml up -d
+
+# Tạo thư mục web (cho eu.way4.app, placeholder)
+echo "📂 Tạo thư mục web cho eu.way4.app..."
+mkdir -p /opt/web/build
+cat > /opt/web/build/index.html <<EOF
 <!DOCTYPE html>
 <html>
-<head>
-    <title>Flutter Web Placeholder</title>
-</head>
-<body>
-    <h1>Chào mừng đến với Flutter Web!</h1>
-    <p>Đây là trang placeholder cho $FLUTTER_DOMAIN. Vui lòng deploy dự án Flutter Web vào /opt/flutter_web/build/web.</p>
-</body>
+<head><title>Web App</title></head>
+<body><h1>Chào mừng đến eu.way4.app!</h1><p>Deploy web của bạn vào đây.</p></body>
 </html>
 EOF
+chown -R caddy:caddy /opt/web
+chmod -R 755 /opt/web
 
-# Sửa quyền thư mục Flutter Web
-chown -R caddy:caddy /opt/flutter_web
-chmod -R 755 /opt/flutter_web
+# Sao lưu Caddyfile
+CADDYFILE="/etc/caddy/Caddyfile"
+if [[ -f "$CADDYFILE" ]]; then
+    cp "$CADDYFILE" "${CADDYFILE}.bak_$(date +%s)"
+fi
 
-# C
+# Tạo Caddyfile cho nhiều subdomain
+echo "Tạo Caddyfile..."
+cat > "$CADDYFILE" <<EOF
+# Base domain
+way4.app {
+    # n8n trên subdomain
+    n8n.way4.app {
+        reverse_proxy localhost:5678
+        encode gzip
+        $( [[ -n "$ADMIN_EMAIL" ]] && echo "tls $ADMIN_EMAIL" || echo "tls" )
+    }
+
+    # Web tĩnh trên subdomain
+    eu.way4.app {
+        root * /opt/web/build
+        file_server
+        encode gzip
+        $( [[ -n "$ADMIN_EMAIL" ]] && echo "tls $ADMIN_EMAIL" || echo "tls" )
+    }
+}
+EOF
+
+# Sửa quyền Caddyfile
+chown caddy:caddy "$CADDYFILE"
+chmod 644 "$CADDYFILE"
+chown -R caddy:caddy /etc/caddy
+chmod 755 /etc/caddy
+
+# Xác thực và chạy Caddy
+if ! caddy validate --config "$CADDYFILE"; then
+    echo "❌ Cấu hình Caddy lỗi. Khôi phục backup..."
+    mv "${CADDYFILE}.bak_*" "$CADDYFILE" 2>/dev/null || true
+    exit 1
+fi
+
+systemctl enable caddy --now
+systemctl reload caddy || { echo "❌ Lỗi Caddy. Kiểm tra: journalctl -xeu caddy.service"; exit 1; }
+
+# Hiển thị mật khẩu n8n
+N8N_PASS=$(grep N8N_BASIC_AUTH_PASSWORD /opt/n8n/docker-compose.yml | cut -d'=' -f2-)
+echo "✅ Hoàn tất!"
+echo "👉 n8n: https://n8n.way4.app (User: admin, Pass: $N8N_PASS)"
+echo "👉 Web: https://eu.way4.app"
+echo "📜 Log Caddy: journalctl -xeu caddy.service"
+echo "⚠️ Deploy web: cp -r build/web/* /opt/web/build/ && chown -R caddy:caddy /opt/web && systemctl reload caddy"
