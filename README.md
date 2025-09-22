@@ -13,6 +13,8 @@ curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/cleanup4caddy.sh 
 Chạy script setup.sh trực tiếp từ GitHub:
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/setup_n8n.sh > setup_n8n.sh && chmod +x setup_n8n.sh && sudo ./setup_n8n.sh
 
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/update_flutter.sh > update_flutter.sh && chmod +x update_flutter.sh && sudo ./update_flutter.sh
+
 
 N8N_DOMAIN=n8n.way4.app FLUTTER_DOMAIN=eurobank.eu.com
 curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
