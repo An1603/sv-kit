@@ -1,140 +1,22 @@
 # 🚀 SV-KIT
-
-Bộ script tự động cài đặt & cập nhật **N8N** + **Flutter Web** với **Nginx + SSL Let's Encrypt**.  
-Được thiết kế **fail-safe** (có rollback), mỗi domain một file riêng trong Nginx, dễ quản lý.
-
----
-
-## 📂 Cấu trúc Repo
-sv-kit/
-├── setup.sh # Script setup lần đầu
-├── update.sh # Script update (pull image mới, reload service)
-└── README.md # Hướng dẫn
-
----
-
 ## ⚙️ Yêu cầu hệ thống
 
 - Ubuntu 20.04/22.04/24.04
 - Quyền `sudo`
-- Docker + Docker Compose
-- Nginx
-- Certbot
 
-Cài nhanh:
 
 ```bash
-sudo apt update && sudo apt install -y docker.io docker-compose nginx
-
-
-
 🚀 Cài đặt lần đầu
-Chạy script setup.sh trực tiếp từ GitHub:
-curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/cleanup4caddy.sh > cleanup4caddy.sh && chmod +x cleanup4caddy.sh && sudo ./cleanup4caddy.sh
 
-curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup_n8n.sh | bash
+
+Chạy script setup.sh trực tiếp từ GitHub:
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/setup_n8n.sh > setup_n8n.sh && chmod +x setup_n8n.sh && sudo ./setup_n8n.sh
 
 
 N8N_DOMAIN=n8n.way4.app FLUTTER_DOMAIN=eurobank.eu.com
 curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
 
-
-👉 Script sẽ:
-Hỏi domain cho N8N và Flutter Web
-Tạo file config Nginx riêng cho từng domain (/etc/nginx/sites-available/)
-Backup config cũ (rollback nếu lỗi)
-Cài SSL với Let's Encrypt
-Khởi động/reload lại Nginx
-
-
-🔄 Cập nhật (Update)
-Để pull image mới & restart service:
-curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/update.sh | bash
-
-👉 Script sẽ:
-Pull Docker image mới
-Restart container
-Kiểm tra & reload lại Nginx
-
-
-🛠 Rollback (Khôi phục config cũ)
-Nếu trong lúc setup có lỗi, script sẽ tự động rollback về config cũ (*.bak).
-Trong trường hợp cần rollback thủ công:
-
-cd /etc/nginx/sites-available/
-sudo mv yourdomain.conf.bak yourdomain.conf
-sudo systemctl reload nginx
-
-📜 Log & Debug
-Kiểm tra Nginx:
-sudo nginx -t
-sudo systemctl status nginx
-
-
-Log Nginx:
-journalctl -xeu nginx.service
-
-
-Log Docker:
-docker ps
-docker logs <container_id>
-
-✅ Ưu điểm
-Mỗi domain 1 file riêng → tránh conflict
-Có backup & rollback tự động
-SSL Let's Encrypt tự động
-Chạy nhanh chỉ với 1 lệnh curl
-
-📧 Liên hệ
-Người phát triển: Nguyễn An
-Ứng dụng: Way4 / SV-KIT
----
-
-
-
-
-
-
-
-
-
-
-# sv-kit 🚀
-Bộ cài đặt nhanh cho **n8n + Flutter Web + Nginx Proxy Manager** trên Ubuntu 22.04 LTS
-
-## 1. Cài đặt lần đầu
-curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/cleanup.sh | bash
-
-Cách 1: Dùng ENV trước khi chạy
-Bạn set biến môi trường rồi chạy script:
-
-export N8N_DOMAIN=n8n.way4.app
-curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh | bash
-
-
-Tương tự cho update.sh:
-export WEB_DOMAIN=eurobank.eu.com
-curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/update.sh | bash
-
-Cách 2: Cho phép nhập khi pipe qua bash
-Bạn đổi lệnh thành:
-bash <(curl -s https://raw.githubusercontent.com/An1603/sv-kit/main/setup.sh)
-
-
-Cách này cho phép read -p hoạt động bình thường vì script được chạy trong một file tạm thay vì stdin.
-👉 Mình khuyên dùng Cách 1 (ENV) vì sau này bạn chỉ cần export một lần (thậm chí viết vào ~/.bashrc) → script chạy luôn, không phải nhập lại.
-Bạn muốn mình sửa luôn setup.sh để nếu không có ENV thì thoát ngay với hướng dẫn export, thay vì read -p, để chạy qua curl | bash chuẩn hơn không?
-
-
-
-Sau khi chạy xong:
-Vào http://<server-ip>:81
-Tài khoản mặc định: admin@example.com / changeme
-Tạo Proxy Host:
-way4.app → http://n8n:5678
-eurobank.eu.com → http://flutter-web:80
-
-Bật SSL Let’s Encrypt để chạy HTTPS.
 
 
 Update website Flutter Web
