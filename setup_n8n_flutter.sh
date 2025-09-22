@@ -17,7 +17,18 @@ else
     echo "Sử dụng email: $ADMIN_EMAIL"
 fi
 
-# Kiểm tra cổng 80/443 (phải trống để Caddy dùng)
+# Kiểm tra DNS
+SERVER_IP=$(curl -s https://api.ipify.org)
+for DOMAIN in n8n.way4.app eu.way4.app; do
+    DOMAIN_IP=$(dig +short "$DOMAIN" | tail -n 1)
+    if [[ -z "$DOMAIN_IP" || "$SERVER_IP" != "$DOMAIN_IP" ]]; then
+        echo "Domain $DOMAIN không trỏ về IP server $SERVER_IP (IP nhận được: $DOMAIN_IP)."
+        echo "Vui lòng cập nhật DNS và thử lại."
+        exit 1
+    fi
+done
+
+# Kiểm tra cổng 80/443
 if ss -tuln | grep -q ':80\|:443'; then
     echo "Cổng 80 hoặc 443 đang được sử dụng. Dừng dịch vụ xung đột:"
     sudo lsof -i :80
@@ -33,9 +44,9 @@ apt upgrade -y
 apt autoremove -y
 apt install -f
 
-# Xóa containerd cũ để tránh xung đột với containerd.io
+# Xóa containerd cũ để tránh xung đột
 if dpkg -l | grep -q containerd; then
-    echo "Xóa containerd cũ để tránh xung đột..."
+    echo "Xóa containerd cũ..."
     apt remove -y containerd
     apt autoremove -y
 fi
@@ -73,7 +84,7 @@ services:
     image: n8nio/n8n:latest
     restart: always
     ports:
-      - "5678:5678"  # Nội bộ, không bind 80/443
+      - "5678:5678"
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
@@ -107,25 +118,22 @@ if [[ -f "$CADDYFILE" ]]; then
     cp "$CADDYFILE" "${CADDYFILE}.bak_$(date +%s)"
 fi
 
-# Tạo Caddyfile cho nhiều subdomain
+# Tạo Caddyfile đúng cú pháp
 echo "Tạo Caddyfile..."
 cat > "$CADDYFILE" <<EOF
-# Base domain
-way4.app {
-    # n8n trên subdomain
-    n8n.way4.app {
-        reverse_proxy localhost:5678
-        encode gzip
-        $( [[ -n "$ADMIN_EMAIL" ]] && echo "tls $ADMIN_EMAIL" || echo "tls" )
-    }
+# n8n trên subdomain
+n8n.way4.app {
+    reverse_proxy localhost:5678
+    encode gzip
+    $( [[ -n "$ADMIN_EMAIL" ]] && echo "tls $ADMIN_EMAIL" || echo "tls" )
+}
 
-    # Web tĩnh trên subdomain
-    eu.way4.app {
-        root * /opt/web/build
-        file_server
-        encode gzip
-        $( [[ -n "$ADMIN_EMAIL" ]] && echo "tls $ADMIN_EMAIL" || echo "tls" )
-    }
+# Web tĩnh trên subdomain
+eu.way4.app {
+    root * /opt/web/build
+    file_server
+    encode gzip
+    $( [[ -n "$ADMIN_EMAIL" ]] && echo "tls $ADMIN_EMAIL" || echo "tls" )
 }
 EOF
 
