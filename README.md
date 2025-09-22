@@ -26,8 +26,9 @@ eu.way4.app
 kythuat360@gmail.com
 
 
-UP WEB: 
-Để tải về Mac: curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_flutter_web.sh > deploy_flutter_web.sh && chmod +x deploy_flutter_web.sh
+UP WEB TỪ LOCAL: 
+Để tải về Mac:
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_flutter_web.sh > deploy_flutter_web.sh && chmod +x deploy_flutter_web.sh
 
-Chạy:
+CHẠY:
 ./deploy_flutter_web.sh
