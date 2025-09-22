@@ -1,9 +1,11 @@
-#!/bin/bash
+
 
 # n8n_backup_migrate.sh - Backup n8n từ server cũ (149.28.158.156) và restore sang server mới (46.28.69.11)
 # Chạy trên Mac, yêu cầu SSH key cho cả hai server
 # Không ảnh hưởng đến Caddy hoặc eu.way4.app
-# curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_backup_migrate.sh > n8n_backup_migrate.sh && chmod +x n8n_backup_migrate.sh
+# curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_backup_migrate.sh > n8n_backup_migrate.sh && chmod +x n8n_backup_migrate.sh && sudo ./n8n_backup_migrate.sh
+
+#!/bin/bash
 
 set -e
 
@@ -20,9 +22,21 @@ VOLUME_BACKUP_FILE="$BACKUP_DIR/n8n_data.tar.gz"
 ENCRYPTION_KEY_FILE="$BACKUP_DIR/n8n_encryption_key.txt"
 
 # Kiểm tra SSH kết nối
+echo "🔑 Kiểm tra kết nối SSH..."
 for IP in "$OLD_SERVER_IP" "$NEW_SERVER_IP"; do
-    if ! ssh -q "$SERVER_USER@$IP" "echo 'Connected'"; then
-        echo "❌ Lỗi SSH đến $IP. Thiết lập SSH key: ssh-keygen && ssh-copy-id root@$IP"
+    if ! ssh -q -o ConnectTimeout=5 "$SERVER_USER@$IP" "echo 'Connected'" 2>/dev/null; then
+        echo "❌ Lỗi SSH đến $IP. Thiết lập SSH key: ssh-keygen -t rsa && ssh-copy-id root@$IP"
+        exit 1
+    fi
+done
+
+# Kiểm tra DNS (đảm bảo domain trỏ đúng)
+echo "📡 Kiểm tra DNS cho n8n.way4.app và eu.way4.app..."
+for DOMAIN in n8n.way4.app eu.way4.app; do
+    DOMAIN_IP=$(dig +short "$DOMAIN" | tail -n 1)
+    if [[ -z "$DOMAIN_IP" || "$DOMAIN_IP" != "$NEW_SERVER_IP" ]]; then
+        echo "⚠️ $DOMAIN không trỏ về $NEW_SERVER_IP (IP nhận được: $DOMAIN_IP)."
+        echo "Cập nhật DNS A record và thử lại."
         exit 1
     fi
 done
@@ -33,11 +47,15 @@ mkdir -p "$BACKUP_DIR"
 # Backup từ server cũ
 echo "📦 Backup từ server cũ ($OLD_SERVER_IP)..."
 ssh "$SERVER_USER@$OLD_SERVER_IP" "
+    if [ ! -f '$OLD_N8N_DIR/docker-compose.yml' ]; then
+        echo '❌ Không tìm thấy $OLD_N8N_DIR/docker-compose.yml'
+        exit 1
+    fi
     cd '$OLD_N8N_DIR' &&
     docker-compose down &&
     docker volume inspect n8n_data > /dev/null || { echo '❌ Volume n8n_data không tồn tại'; exit 1; } &&
     tar -czf /root/n8n_data.tar.gz -C /var/lib/docker/volumes/n8n_data/_data . &&
-    grep -q N8N_ENCRYPTION_KEY docker-compose.yml && grep N8N_ENCRYPTION_KEY docker-compose.yml > /root/n8n_encryption_key.txt || echo 'N8N_ENCRYPTION_KEY=your_key_here' > /root/n8n_encryption_key.txt &&
+    grep N8N_ENCRYPTION_KEY docker-compose.yml > /root/n8n_encryption_key.txt 2>/dev/null || echo 'N8N_ENCRYPTION_KEY=\$(openssl rand -base64 32)' > /root/n8n_encryption_key.txt &&
     docker-compose up -d
 "
 
@@ -90,6 +108,7 @@ ssh "$SERVER_USER@$NEW_SERVER_IP" "
     docker-compose down || true &&
     docker volume rm n8n_data || true &&
     docker volume create n8n_data &&
+    mkdir -p /var/lib/docker/volumes/n8n_data/_data &&
     tar -xzf /root/n8n_data.tar.gz -C /var/lib/docker/volumes/n8n_data/_data . &&
     KEY=\$(cat /root/n8n_encryption_key.txt | cut -d'=' -f2-) &&
     grep -q N8N_ENCRYPTION_KEY docker-compose.yml || echo '      - N8N_ENCRYPTION_KEY=\$KEY' >> docker-compose.yml &&
@@ -107,6 +126,7 @@ ssh "$SERVER_USER@$NEW_SERVER_IP" "
     else
         echo '⚠️ Cảnh báo: Caddyfile có thể thiếu cấu hình cho n8n.way4.app hoặc eu.way4.app.'
         echo 'Kiểm tra: cat /etc/caddy/Caddyfile'
+        echo 'Khôi phục nếu cần: cp /etc/caddy/Caddyfile.bak* /etc/caddy/Caddyfile && systemctl reload caddy'
     fi
 "
 
@@ -114,7 +134,7 @@ ssh "$SERVER_USER@$NEW_SERVER_IP" "
 rm -rf "$BACKUP_DIR"
 
 echo "✅ Backup & Migrate hoàn tất!"
-echo "👉 Kiểm tra n8n: https://n8n.way4.app (Username: admin, Password: changeme hoặc từ docker-compose.yml)"
+echo "👉 Kiểm tra n8n: https://n8n.way4.app (Username: admin, Password: changeme hoặc từ $NEW_N8N_DIR/docker-compose.yml)"
 echo "👉 Kiểm tra web: https://eu.way4.app (nên không bị ảnh hưởng)"
 echo "📜 Log n8n: ssh root@$NEW_SERVER_IP 'docker logs n8n-n8n-1'"
 echo "📜 Log Caddy: ssh root@$NEW_SERVER_IP 'journalctl -xeu caddy.service'"
