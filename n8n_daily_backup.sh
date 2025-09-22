@@ -9,7 +9,7 @@ set -e
 echo "=== N8N DAILY BACKUP TO GOOGLE DRIVE ==="
 
 # Cấu hình
-BACKUP_DIR="/opt/n8n/backups"
+BACKUP_DIR="/home/n8n/backups"
 RCLONE_REMOTE="gdrive:n8n-backups"  # Folder Google Drive
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/n8n_backup_$DATE.tar.gz"
@@ -43,7 +43,7 @@ mkdir -p "$BACKUP_DIR"
 
 # Dừng n8n để backup
 echo "🛑 Dừng n8n..."
-cd /opt/n8n
+cd /home/n8n
 docker-compose down
 
 # Backup volume
