@@ -14,6 +14,9 @@ curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/setup_n8n.sh > se
 
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/setup_flutter_web.sh > setup_flutter_web.sh && chmod +x setup_flutter_web.sh && sudo ./setup_flutter_web.sh
 
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/setup_n8n_flutter.sh > setup_n8n_flutter.sh && chmod +x setup_n8n_flutter.sh && sudo ./setup_n8n_flutter.sh
+
+
 n8n.way4.app
 eu.way4.app
 kythuat360@gmail.com
