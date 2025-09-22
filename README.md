@@ -32,3 +32,58 @@ curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_flutter_we
 
 CHẠY:
 ./deploy_flutter_web.sh
+
+
+BACKUP N8N DATA:
+Tải về Mac:
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_backup_migrate.sh > n8n_backup_migrate.sh && chmod +x n8n_backup_migrate.sh
+
+chmod +x n8n_backup_migrate.sh
+./n8n_backup_migrate.sh
+
+
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_daily_backup.sh > /opt/n8n/n8n_daily_backup.sh
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_restore.sh > /opt/n8n/n8n_restore.sh
+chmod +x /opt/n8n/n8n_*.sh
+
+
+
+Cấu hình cron job (2h sáng hàng ngày):
+bashcrontab -e
+Thêm:
+text0 2 * * * /opt/n8n/n8n_daily_backup.sh >> /opt/n8n/backup.log 2>&1
+Kiểm tra: crontab -l.
+Kiểm tra backup trên Google Drive:
+bashrclone ls gdrive:n8n-backups
+
+
+
+Cấu hình rclone (nếu cần):
+bashrclone config
+Theo hướng dẫn trong script để thiết lập remote gdrive.
+
+Kiểm tra:
+n8n: https://n8n.way4.app (admin + pass từ script).
+Web: https://eurobank.eu.com.
+Backup: rclone ls gdrive:n8n-backups.
+Log: tail /opt/n8n/backup.log.
+
+
+Khắc Phục Lỗi
+rclone config:
+bashrclone config
+Copy ~/.config/rclone/rclone.conf từ server cũ nếu migrate.
+Cron lỗi:
+bashgrep CRON /var/log/syslog
+tail /opt/n8n/backup.log
+
+Caddy lỗi:
+bashjournalctl -xeu caddy.service
+
+DNS:
+bashdig +short n8n.way4.app
+dig +short eurobank.eu.com
+
+
+Khuyến Nghị
+Tùy chỉnh thời gian: Nếu muốn giờ khác (ví dụ: 3h sáng), sửa cron job trong script (0 2 * * * thành 0 3 * * *).
