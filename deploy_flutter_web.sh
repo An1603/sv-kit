@@ -1,3 +1,4 @@
+```bash
 #!/bin/bash
 
 # deploy_flutter_web.sh - Build và deploy Flutter Web lên server (nén/giải nén)
@@ -17,11 +18,26 @@ TEMP_TAR="/tmp/flutter_web_build.tar.gz"
 COMPOSE_FILE="/home/n8n/docker-compose.yml"
 CADDYFILE="/home/n8n/Caddyfile"
 
+# Kiểm tra Flutter
+if ! command -v flutter >/dev/null 2>&1; then
+    echo "❌ Flutter không được cài đặt. Hãy cài Flutter SDK và thêm vào PATH."
+    exit 1
+fi
+
+echo "🦋 Kiểm tra Flutter..."
+flutter --version
+
+# Kiểm tra dự án Flutter
+if [[ ! -f "pubspec.yaml" ]]; then
+    echo "❌ Không tìm thấy pubspec.yaml. Hãy chạy script từ thư mục root dự án Flutter."
+    exit 1
+fi
+
 # Kiểm tra kết nối SSH
 echo "🔍 Kiểm tra kết nối SSH tới $SERVER_USER@$SERVER_IP..."
 if ! ssh -o ConnectTimeout=5 "$SERVER_USER@$SERVER_IP" "echo 'SSH OK'" >/dev/null 2>&1; then
     echo "❌ Không thể kết nối SSH tới $SERVER_USER@$SERVER_IP."
-    echo "👉 Kiểm tra SSH key: ssh-copy-id $SERVER_USER@$SERVER_IP"
+    echo "👉 Thiết lập SSH key: ssh-keygen && ssh-copy-id $SERVER_USER@$SERVER_IP"
     echo "👉 Xóa host key cũ nếu cần: ssh-keygen -R $SERVER_IP"
     exit 1
 fi
@@ -34,6 +50,12 @@ if [[ -z "$SERVER_IP_CHECK" || "$SERVER_IP_CHECK" != "$SERVER_IP" ]]; then
     echo "👉 Cập nhật A record trong panel quản lý DNS."
 fi
 
+# Build Flutter Web
+echo "🔨 Build Flutter Web (release mode)..."
+flutter clean
+flutter pub get
+flutter build web --release
+
 # Kiểm tra build
 if [[ ! -d "build/web" ]]; then
     echo "❌ Build thất bại. Kiểm tra lỗi Flutter."
@@ -42,8 +64,9 @@ fi
 
 # Nén thư mục build/web
 echo "📦 Nén build/web thành $TEMP_TAR..."
-rm -f "$TEMP_TAR"  # Xóa file nén cũ nếu có
+sudo rm -f "$TEMP_TAR"  # Sử dụng sudo để xóa file cũ
 tar -czf "$TEMP_TAR" -C build/web .
+sudo chown $USER:$USER "$TEMP_TAR"  # Đảm bảo file thuộc về user hiện tại
 
 # Upload file nén
 echo "📤 Upload $TEMP_TAR lên $SERVER_USER@$SERVER_IP:/tmp..."
@@ -90,9 +113,10 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Xóa file nén tạm trên local
-rm -f "$TEMP_TAR"
+sudo rm -f "$TEMP_TAR"
 
 echo "✅ Deploy hoàn tất!"
 echo "👉 Web sẵn sàng tại: https://$DOMAIN"
 echo "📜 Kiểm tra log Caddy: ssh $SERVER_USER@$SERVER_IP 'docker logs n8n-caddy-1'"
 echo "⚠️ Nếu lỗi, kiểm tra DNS hoặc thử: curl -k http://localhost:80 -H \"Host: $DOMAIN\" (trên server)"
+```
