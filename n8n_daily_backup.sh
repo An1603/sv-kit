@@ -1,9 +1,12 @@
-#!/bin/bash
-
 # n8n_daily_backup.sh - Backup n8n hàng ngày và upload lên Google Drive
 # Chạy trên server (root@149.28.158.156), tự động cài rclone nếu cần
 # Yêu cầu: SSH key, cron job (2h sáng), Google Drive folder 'n8n-backups'
 # curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_daily_backup.sh > n8n_daily_backup.sh && chmod +x n8n_daily_backup.sh && sudo ./n8n_daily_backup.sh
+
+#!/bin/bash
+
+# n8n_daily_backup.sh - Backup n8n hàng ngày và upload lên Google Drive
+# Chạy trên server (149.28.158.156), thư mục /home/n8n
 
 set -e
 
@@ -38,7 +41,7 @@ if [[ ! -f ~/.config/rclone/rclone.conf ]]; then
     echo "5. Chọn scope '1' (quyền truy cập đầy đủ)." | tee -a /home/n8n/backup.log
     echo "6. Để trống root_folder_id, service_account_file." | tee -a /home/n8n/backup.log
     echo "7. Chọn 'n' (không tự động xác thực), mở URL trên trình duyệt Mac." | tee -a /home/n8n/backup.log
-    echo "   Dùng: ssh -L 53682:localhost:53682 root@46.28.69.11 và mở http://127.0.0.1:53682/auth trên Mac." | tee -a /home/n8n/backup.log
+    echo "   Dùng: ssh -L 53682:localhost:53682 root@149.28.158.156 và mở http://127.0.0.1:53682/auth trên Mac." | tee -a /home/n8n/backup.log
     echo "8. Đăng nhập Google, lấy code, dán vào terminal." | tee -a /home/n8n/backup.log
     echo "9. Chọn 'n' (không dùng team drive), 'y' (xác nhận)." | tee -a /home/n8n/backup.log
     echo "10. KHÔNG đặt mật khẩu cấu hình (để trống)." | tee -a /home/n8n/backup.log
