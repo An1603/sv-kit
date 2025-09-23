@@ -1,7 +1,7 @@
 #!/bin/bash
-
 # n8n_restore.sh - Restore n8n từ Google Drive trên server mới
 # Chạy trên server mới, yêu cầu rclone và SSH key
+# curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_restore.sh > n8n_restore.sh && chmod +x n8n_restore.sh && sudo ./n8n_restore.sh
 
 set -e
 
