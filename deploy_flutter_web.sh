@@ -1,9 +1,8 @@
-```bash
 #!/bin/bash
 
 # deploy_flutter_web.sh - Build và deploy Flutter Web lên server (nén/giải nén)
 # Chạy trên Mac, từ thư mục root dự án Flutter
-# Yêu cầu: Flutter, SSH key cho root@46.28.69.11, Docker Compose trên server
+# Yêu cầu: Flutter, SSH key cho root@46.28.69.11
 
 set -e
 
@@ -14,9 +13,10 @@ SERVER_IP="46.28.69.11"
 SERVER_USER="root"
 SERVER_PATH="/home/web/build"
 DOMAIN="eu.way4.app"
-TEMP_TAR="/tmp/flutter_web_build.tar.gz"
-COMPOSE_FILE="/home/n8n/docker-compose.yml"
-CADDYFILE="/home/n8n/Caddyfile"
+TEMP_TAR="$HOME/tmp/flutter_web_build.tar.gz"
+
+# Tạo thư mục tạm nếu chưa tồn tại
+mkdir -p "$HOME/tmp"
 
 # Kiểm tra Flutter
 if ! command -v flutter >/dev/null 2>&1; then
@@ -33,23 +33,6 @@ if [[ ! -f "pubspec.yaml" ]]; then
     exit 1
 fi
 
-# Kiểm tra kết nối SSH
-echo "🔍 Kiểm tra kết nối SSH tới $SERVER_USER@$SERVER_IP..."
-if ! ssh -o ConnectTimeout=5 "$SERVER_USER@$SERVER_IP" "echo 'SSH OK'" >/dev/null 2>&1; then
-    echo "❌ Không thể kết nối SSH tới $SERVER_USER@$SERVER_IP."
-    echo "👉 Thiết lập SSH key: ssh-keygen && ssh-copy-id $SERVER_USER@$SERVER_IP"
-    echo "👉 Xóa host key cũ nếu cần: ssh-keygen -R $SERVER_IP"
-    exit 1
-fi
-
-# Kiểm tra DNS
-echo "🔍 Kiểm tra DNS cho $DOMAIN..."
-SERVER_IP_CHECK=$(dig +short "$DOMAIN" | head -n1)
-if [[ -z "$SERVER_IP_CHECK" || "$SERVER_IP_CHECK" != "$SERVER_IP" ]]; then
-    echo "⚠️ DNS cho $DOMAIN không trỏ tới $SERVER_IP (hiện tại: $SERVER_IP_CHECK)."
-    echo "👉 Cập nhật A record trong panel quản lý DNS."
-fi
-
 # Build Flutter Web
 echo "🔨 Build Flutter Web (release mode)..."
 flutter clean
@@ -63,60 +46,45 @@ if [[ ! -d "build/web" ]]; then
 fi
 
 # Nén thư mục build/web
+# Nén thư mục build/web
 echo "📦 Nén build/web thành $TEMP_TAR..."
-sudo rm -f "$TEMP_TAR"  # Sử dụng sudo để xóa file cũ
+if [[ -f "$TEMP_TAR" ]]; then
+    if [[ ! -w "$TEMP_TAR" ]]; then
+        echo "⚠️ File $TEMP_TAR không có quyền ghi. Cần quyền sudo để xóa."
+        sudo rm -f "$TEMP_TAR" || {
+            echo "❌ Không thể xóa $TEMP_TAR. Kiểm tra quyền hoặc xóa thủ công bằng 'sudo rm $TEMP_TAR'."
+            exit 1
+        }
+    else
+        rm -f "$TEMP_TAR"
+    fi
+fi
 tar -czf "$TEMP_TAR" -C build/web .
-sudo chown $USER:$USER "$TEMP_TAR"  # Đảm bảo file thuộc về user hiện tại
 
 # Upload file nén
 echo "📤 Upload $TEMP_TAR lên $SERVER_USER@$SERVER_IP:/tmp..."
 scp "$TEMP_TAR" "$SERVER_USER@$SERVER_IP:/tmp/"
 
-# SSH để xử lý trên server
-echo "🔧 Giải nén, sửa quyền, và reload Caddy trên server..."
+# SSH để giải nén, sửa quyền, và reload Caddy
+echo "🔧 Giải nén và reload Caddy trên server..."
 ssh "$SERVER_USER@$SERVER_IP" "
-    # Backup thư mục hiện tại
-    if [ -d \"$SERVER_PATH\" ]; then
-        echo 'Sao lưu $SERVER_PATH...'
-        cp -r \"$SERVER_PATH\" \"/home/web/build.bak_\$(date +%s)\"
-    fi
-
-    # Tạo thư mục và giải nén
-    mkdir -p \"$SERVER_PATH\" &&
-    rm -rf \"$SERVER_PATH\"/* &&
-    tar -xzf /tmp/flutter_web_build.tar.gz -C \"$SERVER_PATH\"/ &&
+    rm -rf $SERVER_PATH/* &&
+    mkdir -p $SERVER_PATH &&
+    tar -xzf /tmp/flutter_web_build.tar.gz -C $SERVER_PATH/ &&
     rm /tmp/flutter_web_build.tar.gz &&
-
-    # Sửa quyền cho container Caddy
-    chown -R 1000:1000 \"$SERVER_PATH\" &&
-    chmod -R 755 \"$SERVER_PATH\" &&
-
-    # Kiểm tra và thêm volume vào docker-compose.yml
-    if ! grep -q \"$SERVER_PATH:/home/web/build\" \"$COMPOSE_FILE\"; then
-        echo 'Thêm volume $SERVER_PATH vào $COMPOSE_FILE...'
-        sed -i '/caddy:/,/networks:/ s|volumes:|volumes:\\n      - $SERVER_PATH:/home/web/build|' \"$COMPOSE_FILE\"
-    fi &&
-
-    # Format Caddyfile để loại bỏ cảnh báo
-    if [ -f \"$CADDYFILE\" ]; then
-        docker run --rm -v \"$CADDYFILE\":/Caddyfile caddy:2 caddy fmt --overwrite /Caddyfile
-    fi &&
-
-    # Restart Caddy qua Docker Compose
     cd /home/n8n &&
     docker-compose up -d
 "
 
 if [[ $? -ne 0 ]]; then
-    echo "⚠️ Lỗi xử lý trên server. Kiểm tra log Caddy: ssh $SERVER_USER@$SERVER_IP 'docker logs n8n-caddy-1'"
+    echo "⚠️ Lỗi xử lý trên server (kiểm tra SSH hoặc log Caddy: journalctl -xeu caddy.service)"
     exit 1
 fi
 
 # Xóa file nén tạm trên local
-sudo rm -f "$TEMP_TAR"
+rm -f "$TEMP_TAR"
 
 echo "✅ Deploy hoàn tất!"
 echo "👉 Web sẵn sàng tại: https://$DOMAIN"
-echo "📜 Kiểm tra log Caddy: ssh $SERVER_USER@$SERVER_IP 'docker logs n8n-caddy-1'"
-echo "⚠️ Nếu lỗi, kiểm tra DNS hoặc thử: curl -k http://localhost:80 -H \"Host: $DOMAIN\" (trên server)"
-```
+echo "📜 Kiểm tra log Caddy trên server: ssh root@$SERVER_IP 'journalctl -xeu caddy.service'"
+echo "⚠️ Nếu lỗi SSH, thiết lập key: ssh-keygen && ssh-copy-id root@$SERVER_IP"
