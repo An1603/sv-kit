@@ -17,21 +17,6 @@ TEMP_TAR="/tmp/flutter_web_build.tar.gz"
 COMPOSE_FILE="/home/n8n/docker-compose.yml"
 CADDYFILE="/home/n8n/Caddyfile"
 
-# Kiểm tra Flutter
-if ! command -v flutter >/dev/null 2>&1; then
-    echo "❌ Flutter không được cài đặt. Hãy cài Flutter SDK và thêm vào PATH."
-    exit 1
-fi
-
-echo "🦋 Kiểm tra Flutter..."
-flutter --version
-
-# Kiểm tra dự án Flutter
-if [[ ! -f "pubspec.yaml" ]]; then
-    echo "❌ Không tìm thấy pubspec.yaml. Hãy chạy script từ thư mục root dự án Flutter."
-    exit 1
-fi
-
 # Kiểm tra kết nối SSH
 echo "🔍 Kiểm tra kết nối SSH tới $SERVER_USER@$SERVER_IP..."
 if ! ssh -o ConnectTimeout=5 "$SERVER_USER@$SERVER_IP" "echo 'SSH OK'" >/dev/null 2>&1; then
@@ -48,12 +33,6 @@ if [[ -z "$SERVER_IP_CHECK" || "$SERVER_IP_CHECK" != "$SERVER_IP" ]]; then
     echo "⚠️ DNS cho $DOMAIN không trỏ tới $SERVER_IP (hiện tại: $SERVER_IP_CHECK)."
     echo "👉 Cập nhật A record trong panel quản lý DNS."
 fi
-
-# Build Flutter Web
-echo "🔨 Build Flutter Web (release mode)..."
-flutter clean
-flutter pub get
-flutter build web --release
 
 # Kiểm tra build
 if [[ ! -d "build/web" ]]; then
