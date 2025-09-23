@@ -7,97 +7,97 @@
 
 set -e
 
-echo "=== N8N DAILY BACKUP TO GOOGLE DRIVE ($(date)) ===" | tee -a /opt/n8n/backup.log
+echo "=== N8N DAILY BACKUP TO GOOGLE DRIVE ($(date)) ===" | tee -a /home/n8n/backup.log
 
 # Cấu hình
-BACKUP_DIR="/opt/n8n/backups"
+BACKUP_DIR="/home/n8n/backups"
 RCLONE_REMOTE="gdrive:n8n-backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/n8n_backup_$DATE.tar.gz"
 KEY_FILE="$BACKUP_DIR/n8n_encryption_key_$DATE.txt"
 
 # Tạo file log
-mkdir -p /opt/n8n
-touch /opt/n8n/backup.log
-chmod 644 /opt/n8n/backup.log
+mkdir -p /home/n8n
+touch /home/n8n/backup.log
+chmod 644 /home/n8n/backup.log
 
 # Kiểm tra và cài rclone
 if ! command -v rclone >/dev/null 2>&1; then
-    echo "📦 Cài đặt rclone..." | tee -a /opt/n8n/backup.log
-    curl https://rclone.org/install.sh | bash >> /opt/n8n/backup.log 2>&1
+    echo "📦 Cài đặt rclone..." | tee -a /home/n8n/backup.log
+    curl https://rclone.org/install.sh | bash >> /home/n8n/backup.log 2>&1
 fi
 
 # Kiểm tra file rclone.conf
 if [[ ! -f ~/.config/rclone/rclone.conf ]]; then
-    echo "❌ Không tìm thấy rclone.conf! Chạy 'rclone config' để thiết lập." | tee -a /opt/n8n/backup.log
-    echo "Hướng dẫn:" | tee -a /opt/n8n/backup.log
-    echo "1. Chạy: rclone config" | tee -a /opt/n8n/backup.log
-    echo "2. Chọn 'n' (remote mới), đặt tên: 'gdrive'." | tee -a /opt/n8n/backup.log
-    echo "3. Chọn 'drive' (Google Drive)." | tee -a /opt/n8n/backup.log
-    echo "4. Để trống client_id, client_secret." | tee -a /opt/n8n/backup.log
-    echo "5. Chọn scope '1' (quyền truy cập đầy đủ)." | tee -a /opt/n8n/backup.log
-    echo "6. Để trống root_folder_id, service_account_file." | tee -a /opt/n8n/backup.log
-    echo "7. Chọn 'n' (không tự động xác thực), mở URL trên trình duyệt Mac." | tee -a /opt/n8n/backup.log
-    echo "   Dùng: ssh -L 53682:localhost:53682 root@46.28.69.11 và mở http://127.0.0.1:53682/auth trên Mac." | tee -a /opt/n8n/backup.log
-    echo "8. Đăng nhập Google, lấy code, dán vào terminal." | tee -a /opt/n8n/backup.log
-    echo "9. Chọn 'n' (không dùng team drive), 'y' (xác nhận)." | tee -a /opt/n8n/backup.log
-    echo "10. KHÔNG đặt mật khẩu cấu hình (để trống)." | tee -a /opt/n8n/backup.log
+    echo "❌ Không tìm thấy rclone.conf! Chạy 'rclone config' để thiết lập." | tee -a /home/n8n/backup.log
+    echo "Hướng dẫn:" | tee -a /home/n8n/backup.log
+    echo "1. Chạy: rclone config" | tee -a /home/n8n/backup.log
+    echo "2. Chọn 'n' (remote mới), đặt tên: 'gdrive'." | tee -a /home/n8n/backup.log
+    echo "3. Chọn 'drive' (Google Drive)." | tee -a /home/n8n/backup.log
+    echo "4. Để trống client_id, client_secret." | tee -a /home/n8n/backup.log
+    echo "5. Chọn scope '1' (quyền truy cập đầy đủ)." | tee -a /home/n8n/backup.log
+    echo "6. Để trống root_folder_id, service_account_file." | tee -a /home/n8n/backup.log
+    echo "7. Chọn 'n' (không tự động xác thực), mở URL trên trình duyệt Mac." | tee -a /home/n8n/backup.log
+    echo "   Dùng: ssh -L 53682:localhost:53682 root@46.28.69.11 và mở http://127.0.0.1:53682/auth trên Mac." | tee -a /home/n8n/backup.log
+    echo "8. Đăng nhập Google, lấy code, dán vào terminal." | tee -a /home/n8n/backup.log
+    echo "9. Chọn 'n' (không dùng team drive), 'y' (xác nhận)." | tee -a /home/n8n/backup.log
+    echo "10. KHÔNG đặt mật khẩu cấu hình (để trống)." | tee -a /home/n8n/backup.log
     exit 1
 fi
 
 # Kiểm tra file rclone.conf mã hóa
 if rclone listremotes >/dev/null 2>&1; then
-    echo "📜 rclone.conf hợp lệ" | tee -a /opt/n8n/backup.log
+    echo "📜 rclone.conf hợp lệ" | tee -a /home/n8n/backup.log
 else
-    echo "❌ rclone.conf bị mã hóa! Giải mã hoặc cấu hình lại." | tee -a /opt/n8n/backup.log
-    echo "Chạy 'rclone config' và nhập mật khẩu, hoặc xóa ~/.config/rclone/rclone.conf và cấu hình lại." | tee -a /opt/n8n/backup.log
+    echo "❌ rclone.conf bị mã hóa! Giải mã hoặc cấu hình lại." | tee -a /home/n8n/backup.log
+    echo "Chạy 'rclone config' và nhập mật khẩu, hoặc xóa ~/.config/rclone/rclone.conf và cấu hình lại." | tee -a /home/n8n/backup.log
     exit 1
 fi
 
 # Kiểm tra remote gdrive
 if ! rclone listremotes | grep -q "^gdrive:$"; then
-    echo "❌ Không tìm thấy remote 'gdrive' trong rclone.conf!" | tee -a /opt/n8n/backup.log
-    echo "Danh sách remote hiện có:" | tee -a /opt/n8n/backup.log
-    rclone listremotes | tee -a /opt/n8n/backup.log
-    echo "Chạy 'rclone config' và làm theo hướng dẫn ở trên." | tee -a /opt/n8n/backup.log
+    echo "❌ Không tìm thấy remote 'gdrive' trong rclone.conf!" | tee -a /home/n8n/backup.log
+    echo "Danh sách remote hiện có:" | tee -a /home/n8n/backup.log
+    rclone listremotes | tee -a /home/n8n/backup.log
+    echo "Chạy 'rclone config' và làm theo hướng dẫn ở trên." | tee -a /home/n8n/backup.log
     exit 1
 fi
 
 # Tạo thư mục n8n-backups trên Google Drive
-echo "📂 Kiểm tra/tạo thư mục $RCLONE_REMOTE..." | tee -a /opt/n8n/backup.log
-rclone mkdir "$RCLONE_REMOTE" >> /opt/n8n/backup.log 2>&1 || { echo "❌ Lỗi tạo thư mục $RCLONE_REMOTE" | tee -a /opt/n8n/backup.log; exit 1; }
+echo "📂 Kiểm tra/tạo thư mục $RCLONE_REMOTE..." | tee -a /home/n8n/backup.log
+rclone mkdir "$RCLONE_REMOTE" >> /home/n8n/backup.log 2>&1 || { echo "❌ Lỗi tạo thư mục $RCLONE_REMOTE" | tee -a /home/n8n/backup.log; exit 1; }
 
 # Tạo thư mục backup local
 mkdir -p "$BACKUP_DIR"
 
 # Dừng n8n
-echo "🛑 Dừng n8n..." | tee -a /opt/n8n/backup.log
-cd /opt/n8n
-docker-compose down >> /opt/n8n/backup.log 2>&1
+echo "🛑 Dừng n8n..." | tee -a /home/n8n/backup.log
+cd /home/n8n
+docker-compose down >> /home/n8n/backup.log 2>&1
 
 # Backup volume
-echo "📦 Backup volume n8n_data..." | tee -a /opt/n8n/backup.log
-docker volume inspect n8n_n8n_data > /dev/null || { echo "❌ Volume n8n_n8n_data không tồn tại" | tee -a /opt/n8n/backup.log; docker-compose up -d >> /opt/n8n/backup.log 2>&1; exit 1; }
-tar -czf "$BACKUP_FILE" -C /var/lib/docker/volumes/n8n_n8n_data/_data . >> /opt/n8n/backup.log 2>&1
+echo "📦 Backup volume n8n_data..." | tee -a /home/n8n/backup.log
+docker volume inspect n8n_n8n_data > /dev/null || { echo "❌ Volume n8n_n8n_data không tồn tại" | tee -a /home/n8n/backup.log; docker-compose up -d >> /home/n8n/backup.log 2>&1; exit 1; }
+tar -czf "$BACKUP_FILE" -C /var/lib/docker/volumes/n8n_n8n_data/_data . >> /home/n8n/backup.log 2>&1
 
 # Lưu encryption key
-echo "🔑 Lưu encryption key..." | tee -a /opt/n8n/backup.log
+echo "🔑 Lưu encryption key..." | tee -a /home/n8n/backup.log
 grep N8N_ENCRYPTION_KEY docker-compose.yml | cut -d'=' -f2- > "$KEY_FILE" || echo "N8N_ENCRYPTION_KEY=your_key_here" > "$KEY_FILE"
 
 # Khởi động lại n8n
-echo "🚀 Khởi động lại n8n..." | tee -a /opt/n8n/backup.log
-docker-compose up -d >> /opt/n8n/backup.log 2>&1
+echo "🚀 Khởi động lại n8n..." | tee -a /home/n8n/backup.log
+docker-compose up -d >> /home/n8n/backup.log 2>&1
 
 # Upload lên Google Drive
-echo "📤 Upload backup lên Google Drive ($RCLONE_REMOTE)..." | tee -a /opt/n8n/backup.log
-rclone copy "$BACKUP_FILE" "$RCLONE_REMOTE/" --progress >> /opt/n8n/backup.log 2>&1 || { echo "❌ Lỗi upload $BACKUP_FILE" | tee -a /opt/n8n/backup.log; exit 1; }
-rclone copy "$KEY_FILE" "$RCLONE_REMOTE/" --progress >> /opt/n8n/backup.log 2>&1 || { echo "❌ Lỗi upload $KEY_FILE" | tee -a /opt/n8n/backup.log; exit 1; }
+echo "📤 Upload backup lên Google Drive ($RCLONE_REMOTE)..." | tee -a /home/n8n/backup.log
+rclone copy "$BACKUP_FILE" "$RCLONE_REMOTE/" --progress >> /home/n8n/backup.log 2>&1 || { echo "❌ Lỗi upload $BACKUP_FILE" | tee -a /home/n8n/backup.log; exit 1; }
+rclone copy "$KEY_FILE" "$RCLONE_REMOTE/" --progress >> /home/n8n/backup.log 2>&1 || { echo "❌ Lỗi upload $KEY_FILE" | tee -a /home/n8n/backup.log; exit 1; }
 
 # Xóa backup cũ hơn 7 ngày
-echo "🗑️ Xóa backup cũ hơn 7 ngày..." | tee -a /opt/n8n/backup.log
+echo "🗑️ Xóa backup cũ hơn 7 ngày..." | tee -a /home/n8n/backup.log
 find "$BACKUP_DIR" -name "n8n_backup_*.tar.gz" -mtime +7 -delete
 find "$BACKUP_DIR" -name "n8n_encryption_key_*.txt" -mtime +7 -delete
-rclone delete --min-age 7d "$RCLONE_REMOTE/" --rmdirs >> /opt/n8n/backup.log 2>&1
+rclone delete --min-age 7d "$RCLONE_REMOTE/" --rmdirs >> /home/n8n/backup.log 2>&1
 
-echo "✅ Backup hoàn tất: $BACKUP_FILE và $KEY_FILE đã upload!" | tee -a /opt/n8n/backup.log
-echo "📜 Kiểm tra Google Drive: rclone ls $RCLONE_REMOTE" | tee -a /opt/n8n/backup.log
+echo "✅ Backup hoàn tất: $BACKUP_FILE và $KEY_FILE đã upload!" | tee -a /home/n8n/backup.log
+echo "📜 Kiểm tra Google Drive: rclone ls $RCLONE_REMOTE" | tee -a /home/n8n/backup.log
