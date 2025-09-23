@@ -19,6 +19,16 @@ if command -v caddy >/dev/null 2>&1; then
     echo "Caddy trên hệ thống đã được vô hiệu hóa."
 fi
 
+# Dọn dẹp cấu hình Docker Compose cũ (nếu có)
+if [ -f /home/n8n/docker-compose.yml ]; then
+    echo "Phát hiện cấu hình Docker Compose cũ trong /home/n8n. Đang dọn dẹp..."
+    cd /home/n8n
+    docker-compose down
+    cp -r /home/n8n /home/n8n.bak_$(date +%s)
+    rm -rf /home/n8n
+    echo "Đã dọn dẹp cấu hình cũ."
+fi
+
 # Nhận input domain từ người dùng
 read -p "Nhập tên miền hoặc tên miền phụ cho n8n (ví dụ: n8n.way4.app): " N8N_DOMAIN
 read -p "Nhập tên miền hoặc tên miền phụ cho website (ví dụ: eu.way4.app): " WEB_DOMAIN
