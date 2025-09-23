@@ -28,6 +28,9 @@ UP WEB TỪ LOCAL:
 Để tải về Mac:
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_flutter_web.sh > deploy_flutter_web.sh && chmod +x deploy_flutter_web.sh && sudo ./deploy_flutter_web.sh
 
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_flutter_nobuild.sh > deploy_flutter_nobuild.sh && chmod +x deploy_flutter_nobuild.sh && sudo ./deploy_flutter_nobuild.sh
+
+
 CHẠY:
 ./deploy_flutter_web.sh
 
