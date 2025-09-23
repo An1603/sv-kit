@@ -51,7 +51,7 @@ fi
 echo "🔍 Kiểm tra file list trong $RCLONE_REMOTE..." | tee -a "$RESTORE_LOG"
 rclone ls "$RCLONE_REMOTE" >> "$RESTORE_LOG" 2>&1
 
-# Lấy file backup mới nhất (định dạng n8n_backup_YYYYMMDD_HHMMSS.tar.gz)
+# Lấy file backup mới nhất
 BACKUP_DATE=$(rclone ls "$RCLONE_REMOTE" | grep "n8n_backup_" | sort -r | head -n 1 | awk '{print $NF}' | grep -o '[0-9]\{8\}_[0-9]\{6\}' | head -n 1)
 
 if [[ -z "$BACKUP_DATE" ]]; then
@@ -74,12 +74,6 @@ mkdir -p "$BACKUP_DIR"
 echo "📥 Tải backup từ Google Drive..." | tee -a "$RESTORE_LOG"
 rclone copy "$RCLONE_REMOTE/$BACKUP_FILE_NAME" "$BACKUP_DIR/" --progress >> "$RESTORE_LOG" 2>&1 || { echo "❌ Lỗi tải backup" | tee -a "$RESTORE_LOG"; exit 1; }
 rclone copy "$RCLONE_REMOTE/$KEY_FILE_NAME" "$BACKUP_DIR/" --progress >> "$RESTORE_LOG" 2>&1 || { echo "❌ Lỗi tải key" | tee -a "$RESTORE_LOG"; exit 1; }
-
-# Cài Docker Compose nếu chưa có
-if ! command -v docker-compose >/dev/null 2>&1; then
-    echo "📦 Cài Docker Compose..." | tee -a "$RESTORE_LOG"
-    apt install -y docker-compose
-fi
 
 # Setup n8n Docker Compose nếu chưa có
 if [[ ! -f "$N8N_DIR/docker-compose.yml" ]]; then

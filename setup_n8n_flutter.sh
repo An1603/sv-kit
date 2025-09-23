@@ -106,6 +106,7 @@ else
     docker-compose -f /opt/n8n/docker-compose.yml up -d
 fi
 
+
 # Tạo thư mục web nếu chưa có
 if [[ ! -d "/opt/web/build" ]]; then
     echo "📂 Tạo thư mục web cho eu.way4.app..."
@@ -118,6 +119,8 @@ if [[ ! -d "/opt/web/build" ]]; then
 </html>
 EOF
 fi
+
+
 chown -R caddy:caddy /opt/web 2>/dev/null || true
 chmod -R 755 /opt/web 2>/dev/null || true
 
@@ -161,6 +164,7 @@ fi
 echo "🚀 Khởi động Caddy..."
 systemctl enable caddy --now
 systemctl reload caddy || { echo "❌ Không thể reload Caddy. Kiểm tra log: journalctl -xeu caddy.service"; exit 1; }
+
 
 # Hiển thị mật khẩu n8n
 N8N_PASS=$(grep N8N_BASIC_AUTH_PASSWORD /opt/n8n/docker-compose.yml | cut -d'=' -f2- 2>/dev/null || echo "changeme")
