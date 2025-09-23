@@ -16,10 +16,6 @@ curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/cleanup4caddy.sh 
 
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/setup_n8n.sh > setup_n8n.sh && chmod +x setup_n8n.sh && sudo ./setup_n8n.sh
 
-curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/setup_flutter_web.sh > setup_flutter_web.sh && chmod +x setup_flutter_web.sh && sudo ./setup_flutter_web.sh
-
-curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/setup_n8n_flutter.sh > setup_n8n_flutter.sh && chmod +x setup_n8n_flutter.sh && sudo ./setup_n8n_flutter.sh
-
 
 n8n.way4.app
 eu.way4.app
@@ -27,7 +23,7 @@ kythuat360@gmail.com
 
 UP WEB TỪ LOCAL: 
 Để tải về Mac:
-curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_flutter_web.sh > deploy_flutter_web.sh && chmod +x deploy_flutter_web.sh
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_flutter_web.sh > deploy_flutter_web.sh && chmod +x deploy_flutter_web.sh && sudo ./deploy_flutter_web.sh
 
 CHẠY:
 ./deploy_flutter_web.sh
@@ -36,14 +32,7 @@ CHẠY:
 
 
 ------------------------------------------------------------------------------------------
-BACKUP N8N DATA:
-Tải về Mac:
-curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_backup_migrate.sh > n8n_backup_migrate.sh && chmod +x n8n_backup_migrate.sh
-
-chmod +x n8n_backup_migrate.sh
-./n8n_backup_migrate.sh
-
-
+BACKUP N8N DATA với Google Drive:
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_daily_backup.sh > n8n_daily_backup.sh && chmod +x n8n_daily_backup.sh && sudo ./n8n_daily_backup.sh
 
 Cấu hình rclone với Google Drive
@@ -60,8 +49,6 @@ Chọn n (không dùng team drive).
 Xác nhận config: y.
 
 Kiểm tra: rclone ls gdrive: (liệt kê file trên Google Drive).
-
-
 
 
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_daily_backup.sh > /home/n8n/n8n_daily_backup.sh

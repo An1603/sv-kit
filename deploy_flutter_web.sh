@@ -11,7 +11,7 @@ echo "=== DEPLOY FLUTTER WEB TO SERVER (NÉN/GIẢI NÉN) ==="
 # Cấu hình server
 SERVER_IP="46.28.69.11"
 SERVER_USER="root"
-SERVER_PATH="/opt/web/build"
+SERVER_PATH="/home/web/build"
 DOMAIN="eu.way4.app"
 TEMP_TAR="/tmp/flutter_web_build.tar.gz"
 
