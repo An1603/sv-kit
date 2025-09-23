@@ -2,7 +2,6 @@
 # Chạy trên server (root@149.28.158.156), tự động cài rclone nếu cần
 # Yêu cầu: SSH key, cron job (2h sáng), Google Drive folder 'n8n-backups'
 # curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_daily_backup.sh > n8n_daily_backup.sh && chmod +x n8n_daily_backup.sh && sudo ./n8n_daily_backup.sh
-
 #!/bin/bash
 
 # n8n_daily_backup.sh - Backup n8n hàng ngày và upload lên Google Drive
@@ -18,6 +17,7 @@ RCLONE_REMOTE="gdrive:n8n-backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/n8n_backup_$DATE.tar.gz"
 KEY_FILE="$BACKUP_DIR/n8n_encryption_key_$DATE.txt"
+VOLUME_NAME="n8n_n8n_data"  # Tên volume mặc định
 
 # Tạo file log
 mkdir -p /home/n8n
@@ -73,15 +73,34 @@ rclone mkdir "$RCLONE_REMOTE" >> /home/n8n/backup.log 2>&1 || { echo "❌ Lỗi 
 # Tạo thư mục backup local
 mkdir -p "$BACKUP_DIR"
 
+# Kiểm tra volume n8n
+echo "🔍 Kiểm tra volume n8n..." | tee -a /home/n8n/backup.log
+if ! docker volume inspect "$VOLUME_NAME" > /dev/null 2>&1; then
+    echo "❌ Volume $VOLUME_NAME không tồn tại. Tìm volume khác..." | tee -a /home/n8n/backup.log
+    VOLUME_NAME=$(docker volume ls --format "{{.Name}}" | grep -E "n8n.*data" | head -n 1)
+    if [[ -z "$VOLUME_NAME" ]]; then
+        echo "❌ Không tìm thấy volume n8n nào. Khởi động n8n để tạo volume..." | tee -a /home/n8n/backup.log
+        cd /home/n8n
+        docker-compose up -d >> /home/n8n/backup.log 2>&1
+        sleep 10
+        VOLUME_NAME=$(docker volume ls --format "{{.Name}}" | grep -E "n8n.*data" | head -n 1)
+        if [[ -z "$VOLUME_NAME" ]]; then
+            echo "❌ Vẫn không tìm thấy volume n8n. Kiểm tra docker-compose.yml trong /home/n8n." | tee -a /home/n8n/backup.log
+            exit 1
+        fi
+    fi
+    echo "📜 Sử dụng volume: $VOLUME_NAME" | tee -a /home/n8n/backup.log
+fi
+
 # Dừng n8n
 echo "🛑 Dừng n8n..." | tee -a /home/n8n/backup.log
 cd /home/n8n
 docker-compose down >> /home/n8n/backup.log 2>&1
 
 # Backup volume
-echo "📦 Backup volume n8n_data..." | tee -a /home/n8n/backup.log
-docker volume inspect n8n_n8n_data > /dev/null || { echo "❌ Volume n8n_n8n_data không tồn tại" | tee -a /home/n8n/backup.log; docker-compose up -d >> /home/n8n/backup.log 2>&1; exit 1; }
-tar -czf "$BACKUP_FILE" -C /var/lib/docker/volumes/n8n_n8n_data/_data . >> /home/n8n/backup.log 2>&1
+echo "📦 Backup volume $VOLUME_NAME..." | tee -a /home/n8n/backup.log
+docker volume inspect "$VOLUME_NAME" > /dev/null || { echo "❌ Volume $VOLUME_NAME không tồn tại" | tee -a /home/n8n/backup.log; docker-compose up -d >> /home/n8n/backup.log 2>&1; exit 1; }
+tar -czf "$BACKUP_FILE" -C /var/lib/docker/volumes/"$VOLUME_NAME"/_data . >> /home/n8n/backup.log 2>&1
 
 # Lưu encryption key
 echo "🔑 Lưu encryption key..." | tee -a /home/n8n/backup.log
