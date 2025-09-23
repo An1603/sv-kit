@@ -99,6 +99,7 @@ services:
       - $N8N_DIR/Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
+      - /home/web/build:/home/web/build
     depends_on:
       - n8n
     networks:
