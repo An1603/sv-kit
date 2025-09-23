@@ -19,34 +19,21 @@ if command -v caddy >/dev/null 2>&1; then
     echo "Caddy trên hệ thống đã được vô hiệu hóa."
 fi
 
-# Hàm kiểm tra domain
-check_domain() {
-    local domain=$1
-    local server_ip=$(curl -s https://api.ipify.org)
-    local domain_ip=$(dig +short $domain | tail -n 1)
-
-    if [[ "$domain_ip" == "$server_ip" ]]; then
-        return 0  # Domain đã trỏ đúng
-    else
-        return 1  # Domain chưa trỏ đúng
-    fi
-}
-
 # Nhận input domain từ người dùng
 read -p "Nhập tên miền hoặc tên miền phụ cho n8n (ví dụ: n8n.way4.app): " N8N_DOMAIN
 read -p "Nhập tên miền hoặc tên miền phụ cho website (ví dụ: eu.way4.app): " WEB_DOMAIN
 
-# Kiểm tra domain
-for domain in "$N8N_DOMAIN" "$WEB_DOMAIN"; do
-    if check_domain "$domain"; then
-        echo "Domain $domain đã được trỏ đúng tới server này. Tiếp tục cài đặt."
-    else
-        echo "Domain $domain chưa được trỏ tới server này."
-        echo "Vui lòng cập nhật bản ghi DNS để trỏ $domain tới IP $(curl -s https://api.ipify.org)"
-        echo "Sau khi cập nhật DNS, chạy lại script này."
+# Kiểm tra DNS
+SERVER_IP=$(curl -s https://api.ipify.org)
+for DOMAIN in "$N8N_DOMAIN" "$WEB_DOMAIN"; do
+    DOMAIN_IP=$(dig +short "$DOMAIN" | tail -n 1)
+    if [[ -z "$DOMAIN_IP" || "$SERVER_IP" != "$DOMAIN_IP" ]]; then
+        echo "Domain $DOMAIN không trỏ về IP server $SERVER_IP (IP nhận được: $DOMAIN_IP)."
+        echo "Vui lòng cập nhật DNS và thử lại."
         exit 1
     fi
 done
+
 
 # Sử dụng thư mục /home trực tiếp
 N8N_DIR="/home/n8n"
