@@ -6,32 +6,25 @@
 #!/bin/bash
 
 # n8n_restore_gdrive.sh - Restore n8n từ Google Drive trên server 46.28.69.11
-# Chạy trực tiếp trên server, thư mục /opt/n8n
+# Chạy trực tiếp trên server, thư mục /home/n8n
 # Tự động lấy file backup mới nhất từ gdrive:n8n-backups
 
 set -e
 
-echo "=== RESTORE N8N FROM GOOGLE DRIVE ($(date)) ===" | tee -a /opt/n8n/restore.log
+echo "=== RESTORE N8N FROM GOOGLE DRIVE ($(date)) ===" | tee -a /home/n8n/restore.log
 
 # Cấu hình
 RCLONE_REMOTE="gdrive:n8n-backups"
 BACKUP_DIR="/tmp/n8n_restore"
-RESTORE_LOG="/opt/n8n/restore.log"
-N8N_DIR="/opt/n8n"
+RESTORE_LOG="/home/n8n/restore.log"
+N8N_DIR="/home/n8n"
 TEMP_BACKUP_FILE="$BACKUP_DIR/n8n_backup_latest.tar.gz"
 TEMP_KEY_FILE="$BACKUP_DIR/n8n_encryption_key_latest.txt"
 
 # Tạo file log
-mkdir -p /opt/n8n
+mkdir -p /home/n8n
 touch "$RESTORE_LOG"
 chmod 644 "$RESTORE_LOG"
-
-# Kiểm tra và cài Docker nếu chưa có
-if ! command -v docker >/dev/null 2>&1; then
-    echo "🐳 Cài Docker..." | tee -a "$RESTORE_LOG"
-    apt update && apt install -y docker.io docker-compose
-    systemctl enable docker --now
-fi
 
 # Kiểm tra rclone
 if ! command -v rclone >/dev/null 2>&1; then
@@ -75,37 +68,7 @@ echo "📥 Tải backup từ Google Drive..." | tee -a "$RESTORE_LOG"
 rclone copy "$RCLONE_REMOTE/$BACKUP_FILE_NAME" "$BACKUP_DIR/" --progress >> "$RESTORE_LOG" 2>&1 || { echo "❌ Lỗi tải backup" | tee -a "$RESTORE_LOG"; exit 1; }
 rclone copy "$RCLONE_REMOTE/$KEY_FILE_NAME" "$BACKUP_DIR/" --progress >> "$RESTORE_LOG" 2>&1 || { echo "❌ Lỗi tải key" | tee -a "$RESTORE_LOG"; exit 1; }
 
-# Cài Docker Compose nếu chưa có
-if ! command -v docker-compose >/dev/null 2>&1; then
-    echo "📦 Cài Docker Compose..." | tee -a "$RESTORE_LOG"
-    apt install -y docker-compose
-fi
 
-# Setup n8n Docker Compose nếu chưa có
-if [[ ! -f "$N8N_DIR/docker-compose.yml" ]]; then
-    echo "🚀 Setup n8n Docker Compose trong $N8N_DIR..." | tee -a "$RESTORE_LOG"
-    mkdir -p "$N8N_DIR"
-    cat > "$N8N_DIR/docker-compose.yml" <<EOL
-version: '3.8'
-services:
-  n8n:
-    image: n8nio/n8n:latest
-    restart: always
-    ports:
-      - "5678:5678"
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=changeme
-      - N8N_HOST=n8n.way4.app
-      - N8N_PROTOCOL=https
-      - N8N_ENCRYPTION_KEY=
-    volumes:
-      - n8n_data:/home/node/.n8n
-volumes:
-  n8n_data:
-EOL
-fi
 
 # Restore dữ liệu
 echo "🔄 Restore dữ liệu..." | tee -a "$RESTORE_LOG"

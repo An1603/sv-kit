@@ -67,7 +67,6 @@ mkdir -p "$N8N_DIR"
 
 # Tạo file docker-compose.yml
 cat << EOF > "$N8N_DIR/docker-compose.yml"
-version: "3"
 services:
   n8n:
     image: n8nio/n8n

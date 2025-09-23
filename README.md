@@ -5,7 +5,6 @@
 - n8n.way4.app
 - eu.way4.app
 - kythuat360@gmail.com
-- Quyền `sudo`
 
 
 ```bash
@@ -14,7 +13,11 @@ Chạy script setup.sh trực tiếp từ GitHub:
 
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/cleanup4caddy.sh > cleanup4caddy.sh && chmod +x cleanup4caddy.sh && sudo ./cleanup4caddy.sh
 
-curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/setup_n8n.sh > setup_n8n.sh && chmod +x setup_n8n.sh && sudo ./setup_n8n.sh
+CÀI ĐẶT:
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/install_n8n_and_web.sh > install_n8n_and_web.sh && chmod +x install_n8n_and_web.sh && sudo ./install_n8n_and_web.sh
+
+NÂNG CẤP:
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/upgrade-n8n.sh > upgrade-n8n.sh && chmod +x upgrade-n8n.sh && sudo ./upgrade-n8n.sh
 
 
 n8n.way4.app
