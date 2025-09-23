@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # n8n_daily_backup.sh - Backup n8n hàng ngày và upload lên Google Drive
-# Chạy trên server (root@46.28.69.11), tự động cài rclone nếu cần
+# Chạy trên server (root@149.28.158.156), tự động cài rclone nếu cần
 # Yêu cầu: SSH key, cron job (2h sáng), Google Drive folder 'n8n-backups'
 
 set -e
