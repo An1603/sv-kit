@@ -2,10 +2,11 @@
 # Chạy trên server (root@149.28.158.156), tự động cài rclone nếu cần
 # Yêu cầu: SSH key, cron job (2h sáng), Google Drive folder 'n8n-backups'
 # curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/n8n_daily_backup.sh > n8n_daily_backup.sh && chmod +x n8n_daily_backup.sh && sudo ./n8n_daily_backup.sh
+
 #!/bin/bash
 
 # n8n_daily_backup.sh - Backup n8n hàng ngày và upload lên Google Drive
-# Chạy trên server (149.28.158.156), thư mục /home/n8n
+# Chạy trên server (149.28.158.156), thư mục /home/n8n, xử lý volume động
 
 set -e
 
@@ -79,13 +80,22 @@ if ! docker volume inspect "$VOLUME_NAME" > /dev/null 2>&1; then
     echo "❌ Volume $VOLUME_NAME không tồn tại. Tìm volume khác..." | tee -a /home/n8n/backup.log
     VOLUME_NAME=$(docker volume ls --format "{{.Name}}" | grep -E "n8n.*data" | head -n 1)
     if [[ -z "$VOLUME_NAME" ]]; then
-        echo "❌ Không tìm thấy volume n8n nào. Khởi động n8n để tạo volume..." | tee -a /home/n8n/backup.log
-        cd /home/n8n
-        docker-compose up -d >> /home/n8n/backup.log 2>&1
-        sleep 10
-        VOLUME_NAME=$(docker volume ls --format "{{.Name}}" | grep -E "n8n.*data" | head -n 1)
-        if [[ -z "$VOLUME_NAME" ]]; then
-            echo "❌ Vẫn không tìm thấy volume n8n. Kiểm tra docker-compose.yml trong /home/n8n." | tee -a /home/n8n/backup.log
+        echo "❌ Không tìm thấy volume n8n nào. Kiểm tra docker-compose.yml..." | tee -a /home/n8n/backup.log
+        if [[ -f /home/n8n/docker-compose.yml ]]; then
+            VOLUME_NAME=$(grep -A1 "volumes:" /home/n8n/docker-compose.yml | grep -v "volumes:" | grep -o "n8n[^:]*" | head -n 1)
+            if [[ -z "$VOLUME_NAME" ]]; then
+                echo "❌ Không tìm thấy volume trong docker-compose.yml. Khởi động n8n để tạo volume..." | tee -a /home/n8n/backup.log
+                cd /home/n8n
+                docker-compose up -d >> /home/n8n/backup.log 2>&1
+                sleep 10
+                VOLUME_NAME=$(docker volume ls --format "{{.Name}}" | grep -E "n8n.*data" | head -n 1)
+                if [[ -z "$VOLUME_NAME" ]]; then
+                    echo "❌ Vẫn không tìm thấy volume n8n. Kiểm tra cấu hình n8n trong /home/n8n." | tee -a /home/n8n/backup.log
+                    exit 1
+                fi
+            fi
+        else
+            echo "❌ Không tìm thấy docker-compose.yml trong /home/n8n." | tee -a /home/n8n/backup.log
             exit 1
         fi
     fi
