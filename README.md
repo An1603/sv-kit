@@ -17,9 +17,7 @@ curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/install_n8n_and_w
 # THEM WEB - Chay tren sever:
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/add_admin_web.sh > add_admin_web.sh && chmod +x add_admin_web.sh && sudo ./add_admin_web.sh
 
-
-
-# NÂNG CẤP N*N:
+# NÂNG CẤP N8N:
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/upgrade-n8n.sh > upgrade-n8n.sh && chmod +x upgrade-n8n.sh && sudo ./upgrade-n8n.sh
 
 
@@ -33,9 +31,13 @@ curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_flutter_we
 
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_flutter_nobuild.sh > deploy_flutter_nobuild.sh && chmod +x deploy_flutter_nobuild.sh && sudo ./deploy_flutter_nobuild.sh
 
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/deploy_admin_nobuild.sh > deploy_admin_nobuild.sh && chmod +x deploy_admin_nobuild.sh && sudo ./deploy_admin_nobuild.sh
+
+
+
 
 # CHẠY:
-./deploy_flutter_web.sh
+./deploy_admin_nobuild.sh
 
 
 
