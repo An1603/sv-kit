@@ -14,7 +14,12 @@ curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/cleanup4caddy.sh 
 # CÀI ĐẶT:
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/install_n8n_and_web.sh > install_n8n_and_web.sh && chmod +x install_n8n_and_web.sh && sudo ./install_n8n_and_web.sh
 
-# NÂNG CẤP:
+# THEM WEB - Chay tren sever:
+curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/add_admin_web.sh > add_admin_web.sh && chmod +x add_admin_web.sh && sudo ./add_admin_web.sh
+
+
+
+# NÂNG CẤP N*N:
 curl -sSL https://raw.githubusercontent.com/An1603/sv-kit/main/upgrade-n8n.sh > upgrade-n8n.sh && chmod +x upgrade-n8n.sh && sudo ./upgrade-n8n.sh
 
 
